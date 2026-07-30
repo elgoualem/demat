@@ -1,0 +1,115 @@
+// Schéma MVP : catalogue, comptes, commandes, factures, event log.
+// Un fournisseur = une ligne Provider. Un service = une offre normalisée liée à un Provider.
+// Chaque commande génère des Event (traçabilité de bout en bout, quel que soit le parcours).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JourneyType {
+  NATIVE
+  HYBRID
+  EXTERNAL
+}
+
+enum ConsumptionType {
+  UNIT
+  SUBSCRIPTION
+  USAGE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+  EXPIRED
+}
+
+enum ProviderStatus {
+  ACTIVE
+  DEGRADED
+  DOWN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Provider {
+  id        String         @id @default(uuid())
+  name      String
+  slug      String         @unique
+  status    ProviderStatus @default(ACTIVE)
+  // connectorKey identifie quel connecteur (src/connectors) traite ce fournisseur
+  connectorKey String
+  createdAt DateTime       @default(now())
+  services  Service[]
+  orders    Order[]
+}
+
+model Service {
+  id              String          @id @default(uuid())
+  provider        Provider        @relation(fields: [providerId], references: [id])
+  providerId      String
+  name            String
+  slug            String          @unique
+  category        String
+  description     String
+  price           Int             // en centimes
+  currency        String          @default("EUR")
+  consumptionType ConsumptionType @default(UNIT)
+  journeyType     JourneyType     @default(NATIVE)
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  orders          Order[]
+}
+
+model Order {
+  id                 String      @id @default(uuid())
+  user               User        @relation(fields: [userId], references: [id])
+  userId             String
+  service            Service     @relation(fields: [serviceId], references: [id])
+  serviceId          String
+  provider           Provider    @relation(fields: [providerId], references: [id])
+  providerId         String
+  status             OrderStatus @default(PENDING)
+  amount             Int
+  currency           String      @default("EUR")
+  journeyType        JourneyType
+  providerOrderId    String?     // id renvoyé par le fournisseur, si natif/hybride
+  idempotencyKey     String      @unique
+  createdAt          DateTime    @default(now())
+  confirmedAt        DateTime?
+  invoice            Invoice?
+  events             Event[]
+}
+
+model Invoice {
+  id        String   @id @default(uuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String   @unique
+  amount    Int
+  currency  String   @default("EUR")
+  status    String   @default("ISSUED") // ISSUED, REFUNDED
+  issuedAt  DateTime @default(now())
+}
+
+// Journal d'événements immuable : source de vérité pour la traçabilité et le support.
+model Event {
+  id        String   @id @default(uuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+  type      String   // ORDER_CREATED, PROVIDER_CALL_ATTEMPT, PROVIDER_CONFIRMED, PROVIDER_FAILED, REFUND_ISSUED...
+  payload   Json?
+  createdAt DateTime @default(now())
+}
