@@ -37,12 +37,43 @@ enum ProviderStatus {
   DOWN
 }
 
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  orders    Order[]
+  id          String       @id @default(uuid())
+  email       String       @unique
+  name        String?
+  createdAt   DateTime     @default(now())
+  orders      Order[]
+  memberships Membership[]
+}
+
+// Compte B2B : plusieurs utilisateurs (Membership) rattachés à une même
+// organisation, pour la facturation consolidée des commandes passées
+// pour le compte de l'entreprise (Order.organizationId).
+model Organization {
+  id          String       @id @default(uuid())
+  name        String
+  vatNumber   String?
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  orders      Order[]
+}
+
+model Membership {
+  id             String         @id @default(uuid())
+  user           User           @relation(fields: [userId], references: [id])
+  userId         String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  organizationId String
+  role           MembershipRole @default(MEMBER)
+  createdAt      DateTime       @default(now())
+
+  @@unique([userId, organizationId])
 }
 
 model Provider {
@@ -75,20 +106,24 @@ model Service {
 }
 
 model Order {
-  id                 String      @id @default(uuid())
-  user               User        @relation(fields: [userId], references: [id])
+  id                 String        @id @default(uuid())
+  user               User          @relation(fields: [userId], references: [id])
   userId             String
-  service            Service     @relation(fields: [serviceId], references: [id])
+  // Rattachement optionnel à une organisation : commande passée pour le compte
+  // de l'entreprise (B2B, facturation consolidée) plutôt qu'à titre personnel (B2C).
+  organization       Organization? @relation(fields: [organizationId], references: [id])
+  organizationId     String?
+  service            Service       @relation(fields: [serviceId], references: [id])
   serviceId          String
-  provider           Provider    @relation(fields: [providerId], references: [id])
+  provider           Provider      @relation(fields: [providerId], references: [id])
   providerId         String
-  status             OrderStatus @default(PENDING)
+  status             OrderStatus   @default(PENDING)
   amount             Int
-  currency           String      @default("EUR")
+  currency           String        @default("EUR")
   journeyType        JourneyType
-  providerOrderId    String?     // id renvoyé par le fournisseur, si natif/hybride
-  idempotencyKey     String      @unique
-  createdAt          DateTime    @default(now())
+  providerOrderId    String?       // id renvoyé par le fournisseur, si natif/hybride
+  idempotencyKey     String        @unique
+  createdAt          DateTime      @default(now())
   confirmedAt        DateTime?
   invoice            Invoice?
   events             Event[]

@@ -15,6 +15,9 @@ export default function Nav() {
         <div className="flex items-center gap-4 text-sm">
           {user ? (
             <>
+              <Link href="/organizations" className="font-medium text-slate-700 hover:text-slate-900">
+                Organisations
+              </Link>
               <span className="text-slate-500">{user.email}</span>
               <button
                 onClick={logout}

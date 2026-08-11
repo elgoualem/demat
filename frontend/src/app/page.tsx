@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getServices, createOrder, Service, ApiError } from "@/lib/api";
+import { getServices, createOrder, listOrganizations, Service, Organization, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getCategoryMeta } from "@/lib/categories";
 
@@ -14,6 +14,8 @@ export default function CataloguePage() {
   const { token } = useAuth();
   const router = useRouter();
   const [services, setServices] = useState<Service[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [buyingAs, setBuyingAs] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orderingId, setOrderingId] = useState<string | null>(null);
@@ -26,6 +28,11 @@ export default function CataloguePage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (token) listOrganizations(token).then(setOrgs).catch(() => {});
+    else setOrgs([]);
+  }, [token]);
+
   const categories = useMemo(() => Array.from(new Set(services.map((s) => s.category))), [services]);
   const filtered = activeCategory ? services.filter((s) => s.category === activeCategory) : services;
 
@@ -37,7 +44,7 @@ export default function CataloguePage() {
     setOrderingId(serviceId);
     setError(null);
     try {
-      const order = await createOrder(token, serviceId);
+      const order = await createOrder(token, serviceId, buyingAs || null);
       router.push(`/orders/${order.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
@@ -51,6 +58,24 @@ export default function CataloguePage() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dématérialisez tout ce qui peut l&apos;être</h1>
         <p className="mt-2 text-slate-500">Téléphonie, argent, voyage — un seul endroit pour souscrire et suivre vos services.</p>
       </div>
+
+      {orgs.length > 0 && (
+        <label className="mb-6 flex w-fit items-center gap-2 text-sm">
+          <span className="font-medium text-slate-700">Commander pour :</span>
+          <select
+            value={buyingAs}
+            onChange={(e) => setBuyingAs(e.target.value)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+          >
+            <option value="">Moi-même</option>
+            {orgs.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {categories.length > 0 && (
         <div className="mb-8 flex flex-wrap gap-2">

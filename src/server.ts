@@ -4,6 +4,7 @@ import express, { NextFunction, Request, Response } from "express";
 import servicesRouter from "./routes/services";
 import ordersRouter from "./routes/orders";
 import authRouter from "./routes/auth";
+import organizationsRouter from "./routes/organizations";
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3001" }));
@@ -13,6 +14,7 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/auth", authRouter);
 app.use("/services", servicesRouter);
 app.use("/orders", ordersRouter);
+app.use("/organizations", organizationsRouter);
 
 // Filet de sécurité : toute erreur qui remonte jusqu'ici (via asyncHandler ou
 // throw synchrone) renvoie un 500 propre au lieu de laisser Node planter le process.

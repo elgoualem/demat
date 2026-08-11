@@ -37,10 +37,12 @@ export interface Order {
   status: "PENDING" | "CONFIRMED" | "FAILED" | "REFUNDED" | "EXPIRED";
   amount: number;
   currency: string;
+  organizationId?: string | null;
   createdAt: string;
   confirmedAt: string | null;
   events?: OrderEvent[];
   invoice?: Invoice | null;
+  user?: AuthUser;
 }
 
 export interface AuthUser {
@@ -52,6 +54,23 @@ export interface AuthUser {
 export interface AuthResponse {
   token: string;
   user: AuthUser;
+}
+
+export type MembershipRole = "OWNER" | "ADMIN" | "MEMBER";
+
+export interface Membership {
+  role: MembershipRole;
+  createdAt: string;
+  user: AuthUser;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  vatNumber: string | null;
+  createdAt: string;
+  role?: MembershipRole;
+  memberships?: Membership[];
 }
 
 class ApiError extends Error {
@@ -95,16 +114,57 @@ export function login(email: string): Promise<AuthResponse> {
   });
 }
 
-export function createOrder(token: string, serviceId: string): Promise<Order> {
+export function createOrder(token: string, serviceId: string, organizationId?: string | null): Promise<Order> {
   return request<Order>("/orders", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ serviceId }),
+    body: JSON.stringify({ serviceId, organizationId: organizationId || undefined }),
   });
 }
 
 export function getOrder(token: string, orderId: string): Promise<Order> {
   return request<Order>(`/orders/${orderId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function listOrganizations(token: string): Promise<Organization[]> {
+  return request<Organization[]>("/organizations", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createOrganization(token: string, name: string, vatNumber?: string): Promise<Organization> {
+  return request<Organization>("/organizations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name, vatNumber: vatNumber || undefined }),
+  });
+}
+
+export function getOrganization(token: string, id: string): Promise<Organization> {
+  return request<Organization>(`/organizations/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getOrganizationOrders(token: string, id: string): Promise<Order[]> {
+  return request<Order[]>(`/organizations/${id}/orders`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function addOrganizationMember(token: string, id: string, email: string, role?: MembershipRole): Promise<Membership> {
+  return request<Membership>(`/organizations/${id}/members`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export function removeOrganizationMember(token: string, id: string, userId: string): Promise<void> {
+  return request<void>(`/organizations/${id}/members/${userId}`, {
+    method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
 }
