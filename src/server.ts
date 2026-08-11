@@ -2,11 +2,13 @@ import "dotenv/config";
 import express, { NextFunction, Request, Response } from "express";
 import servicesRouter from "./routes/services";
 import ordersRouter from "./routes/orders";
+import authRouter from "./routes/auth";
 
 const app = express();
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.use("/auth", authRouter);
 app.use("/services", servicesRouter);
 app.use("/orders", ordersRouter);
 
