@@ -20,6 +20,7 @@ export default function CataloguePage() {
   const [error, setError] = useState<string | null>(null);
   const [orderingId, setOrderingId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     getServices()
@@ -34,7 +35,18 @@ export default function CataloguePage() {
   }, [token]);
 
   const categories = useMemo(() => Array.from(new Set(services.map((s) => s.category))), [services]);
-  const filtered = activeCategory ? services.filter((s) => s.category === activeCategory) : services;
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return services.filter((s) => {
+      if (activeCategory && s.category !== activeCategory) return false;
+      if (!query) return true;
+      return (
+        s.name.toLowerCase().includes(query) ||
+        s.description.toLowerCase().includes(query) ||
+        s.provider.name.toLowerCase().includes(query)
+      );
+    });
+  }, [services, activeCategory, search]);
 
   async function handleOrder(serviceId: string) {
     if (!token) {
@@ -54,9 +66,28 @@ export default function CataloguePage() {
 
   return (
     <div>
-      <div className="mb-10">
+      <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dématérialisez tout ce qui peut l&apos;être</h1>
         <p className="mt-2 text-slate-500">Téléphonie, argent, voyage — un seul endroit pour souscrire et suivre vos services.</p>
+        <p className="mt-1 text-sm text-slate-400">Paiement sécurisé · Confirmation instantanée</p>
+      </div>
+
+      <div className="relative mb-8">
+        <svg
+          className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+        </svg>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher un service, un fournisseur…"
+          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-slate-900 shadow-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+        />
       </div>
 
       {orgs.length > 0 && (
@@ -110,7 +141,9 @@ export default function CataloguePage() {
       {loading ? (
         <p className="text-slate-500">Chargement du catalogue…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-slate-500">Aucun service dans cette catégorie pour l&apos;instant.</p>
+        <p className="text-slate-500">
+          {search ? `Aucun résultat pour « ${search} ».` : "Aucun service dans cette catégorie pour l'instant."}
+        </p>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((service) => {
