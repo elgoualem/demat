@@ -1,10 +1,12 @@
 import "dotenv/config";
+import cors from "cors";
 import express, { NextFunction, Request, Response } from "express";
 import servicesRouter from "./routes/services";
 import ordersRouter from "./routes/orders";
 import authRouter from "./routes/auth";
 
 const app = express();
+app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3001" }));
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));

@@ -12,6 +12,7 @@ src/connectors/        contrat ProviderConnector + connecteur mock + registre
 src/orchestrator/      routage fournisseur, retries, idempotency key, event log
 src/routes/            API REST (auth, services, orders)
 src/middleware/auth.ts JWT minimal
+frontend/               frontend Next.js (catalogue, auth, suivi de commande) — voir frontend/README.md
 ```
 
 ## Lancer en local
