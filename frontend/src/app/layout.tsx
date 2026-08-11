@@ -14,7 +14,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <AuthProvider>
           <Nav />
-          <main className="container">{children}</main>
+          <main className="mx-auto max-w-5xl px-6 py-10">{children}</main>
         </AuthProvider>
       </body>
     </html>
