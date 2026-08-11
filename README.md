@@ -10,7 +10,7 @@ prisma/schema.prisma   modèle de données (User, Provider, Service, Order, Invo
 prisma/seed.ts         données de démo (1 fournisseur, 2 services)
 src/connectors/        contrat ProviderConnector + connecteur mock + registre
 src/orchestrator/      routage fournisseur, retries, idempotency key, event log
-src/routes/            API REST (services, orders)
+src/routes/            API REST (auth, services, orders)
 src/middleware/auth.ts JWT minimal
 ```
 
@@ -25,6 +25,8 @@ npm run dev
 ```
 
 Endpoints :
+- `POST /auth/register` — `{ "email": "...", "name": "..." }` → crée l'utilisateur, renvoie `{ token, user }`
+- `POST /auth/login` — `{ "email": "..." }` → renvoie `{ token, user }`
 - `GET /services` — catalogue
 - `POST /orders` (Bearer JWT) — `{ "serviceId": "..." }`
 - `GET /orders/:id` (Bearer JWT)
