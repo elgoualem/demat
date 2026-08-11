@@ -4,8 +4,13 @@ import { prisma } from "../db";
 import { submitOrderToProvider } from "../orchestrator/orchestrator";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { asyncHandler } from "../middleware/asyncHandler";
+import { calculatePlatformFee } from "../billing/commission";
 
 const router = Router();
+
+// Toutes les routes de ce fichier sont client-facing : platformFee (la commission
+// plateforme) ne doit jamais y apparaître, d'où l'omit systématique.
+const OMIT_PLATFORM_FEE = { platformFee: true } as const;
 
 // POST /orders { serviceId, organizationId? } — parcours natif : la plateforme crée la commande,
 // appelle le fournisseur via l'orchestrateur, et renvoie le statut final.
@@ -22,7 +27,7 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
     if (!membership) return res.status(403).json({ error: "not_a_member" });
   }
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId } });
+  const service = await prisma.service.findUnique({ where: { id: serviceId }, include: { provider: true } });
   if (!service || !service.isActive) return res.status(404).json({ error: "service_not_found" });
 
   const order = await prisma.order.create({
@@ -32,17 +37,19 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
       serviceId: service.id,
       providerId: service.providerId,
       amount: service.price,
+      platformFee: calculatePlatformFee(service.provider, service.price),
       currency: service.currency,
       journeyType: service.journeyType,
       idempotencyKey: uuidv4(),
     },
+    omit: OMIT_PLATFORM_FEE,
   });
 
   await prisma.event.create({ data: { orderId: order.id, type: "ORDER_CREATED" } });
 
   if (service.journeyType === "NATIVE") {
     const result = await submitOrderToProvider(order.id);
-    const updated = await prisma.order.findUnique({ where: { id: order.id } });
+    const updated = await prisma.order.findUnique({ where: { id: order.id }, omit: OMIT_PLATFORM_FEE });
     return res.status(result.status === "CONFIRMED" ? 201 : 502).json(updated);
   }
 
@@ -55,6 +62,7 @@ router.get("/:id", requireAuth, asyncHandler(async (req: AuthedRequest, res) => 
   const order = await prisma.order.findUnique({
     where: { id: req.params.id },
     include: { events: { orderBy: { createdAt: "asc" } }, invoice: true },
+    omit: OMIT_PLATFORM_FEE,
   });
   if (!order) return res.status(404).json({ error: "order_not_found" });
 

@@ -64,6 +64,7 @@ router.get("/:id/orders", asyncHandler(async (req: AuthedRequest, res) => {
   const orders = await prisma.order.findMany({
     where: { organizationId: req.params.id },
     include: { invoice: true, user: { select: { id: true, email: true, name: true } } },
+    omit: { platformFee: true }, // vue accessible aux membres de l'org : jamais la commission plateforme
     orderBy: { createdAt: "desc" },
   });
   res.json(orders);

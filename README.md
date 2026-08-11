@@ -40,6 +40,10 @@ Organisations (B2B, Bearer JWT requis) :
 - `POST /organizations/:id/members` — `{ "email": "...", "role": "ADMIN"|"MEMBER" }` (OWNER/ADMIN uniquement, l'email doit déjà avoir un compte)
 - `DELETE /organizations/:id/members/:userId` (OWNER/ADMIN uniquement, un OWNER ne peut pas être retiré)
 
+Commission plateforme : chaque `Provider` a sa propre politique (`commissionType` : `PERCENTAGE` en points de base, ou `FIXED` en centimes). Elle est calculée à la création de chaque commande (`Order.platformFee`) et **n'est jamais renvoyée par une route accessible aux clients** — exclue explicitement de `POST/GET /orders` et `GET /organizations/:id/orders`.
+- `GET /admin/commissions` (Bearer JWT, réservé à `User.isAdmin = true`) — commission totale, détail par fournisseur, historique des commandes confirmées
+- Pas de self-service pour devenir admin : définir `ADMIN_EMAIL` dans `.env` avant `npm run seed` désigne ce compte comme admin (ou passer `isAdmin: true` manuellement en base)
+
 ## Déploiement Railway
 
 1. Créer un dépôt GitHub, y pousser ce code.

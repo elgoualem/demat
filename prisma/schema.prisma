@@ -3,7 +3,8 @@
 // Chaque commande génère des Event (traçabilité de bout en bout, quel que soit le parcours).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -43,10 +44,19 @@ enum MembershipRole {
   MEMBER
 }
 
+enum CommissionType {
+  PERCENTAGE // commissionValue en points de base (500 = 5,00 %)
+  FIXED      // commissionValue en centimes
+}
+
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
   name        String?
+  // Opérateur de la plateforme (toi) : accès aux revenus de commission,
+  // invisibles pour les clients. Pas de self-service — flag posé manuellement
+  // ou via ADMIN_EMAIL au seed.
+  isAdmin     Boolean      @default(false)
   createdAt   DateTime     @default(now())
   orders      Order[]
   memberships Membership[]
@@ -83,6 +93,10 @@ model Provider {
   status    ProviderStatus @default(ACTIVE)
   // connectorKey identifie quel connecteur (src/connectors) traite ce fournisseur
   connectorKey String
+  // Politique de commission plateforme, propre à chaque fournisseur (négociée
+  // individuellement) — jamais exposée au client, prélevée sur le prix qu'il paie.
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionValue Int            @default(500) // 5,00 % par défaut
   createdAt DateTime       @default(now())
   services  Service[]
   orders    Order[]
@@ -119,6 +133,11 @@ model Order {
   providerId         String
   status             OrderStatus   @default(PENDING)
   amount             Int
+  // Commission plateforme prélevée sur `amount`, calculée à la création selon
+  // la politique du fournisseur (Provider.commissionType/commissionValue).
+  // Jamais renvoyée par les routes accessibles aux clients (voir routes/orders.ts) —
+  // uniquement consultable par un admin via GET /admin/commissions.
+  platformFee        Int           @default(0)
   currency           String        @default("EUR")
   journeyType        JourneyType
   providerOrderId    String?       // id renvoyé par le fournisseur, si natif/hybride

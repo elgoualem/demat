@@ -10,6 +10,8 @@ async function main() {
       name: "Telecom Demo",
       slug: "telecom-demo",
       connectorKey: "mock-telecom",
+      commissionType: "PERCENTAGE",
+      commissionValue: 500, // 5,00 %
     },
   });
 
@@ -52,6 +54,8 @@ async function main() {
       name: "Finance Demo",
       slug: "finance-demo",
       connectorKey: "mock-finance",
+      commissionType: "FIXED",
+      commissionValue: 150, // 1,50 € par transaction
     },
   });
 
@@ -94,6 +98,8 @@ async function main() {
       name: "Voyage Demo",
       slug: "voyage-demo",
       connectorKey: "mock-voyage",
+      commissionType: "PERCENTAGE",
+      commissionValue: 800, // 8,00 %
     },
   });
 
@@ -128,6 +134,17 @@ async function main() {
       journeyType: "NATIVE",
     },
   });
+
+  // ADMIN_EMAIL (optionnel) : désigne l'opérateur de la plateforme, seul compte
+  // pouvant consulter GET /admin/commissions. Pas de self-service par design.
+  if (process.env.ADMIN_EMAIL) {
+    await prisma.user.upsert({
+      where: { email: process.env.ADMIN_EMAIL },
+      update: { isAdmin: true },
+      create: { email: process.env.ADMIN_EMAIL, isAdmin: true },
+    });
+    console.log(`Admin désigné : ${process.env.ADMIN_EMAIL}`);
+  }
 
   console.log("Seed terminé.");
 }
