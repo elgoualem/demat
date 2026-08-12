@@ -142,16 +142,27 @@ router.get("/analytics", asyncHandler(async (req, res) => {
 
 // ---- Fournisseurs ----
 
+// apiKey est un secret write-only : jamais renvoyé en clair par l'API, seulement
+// un booléen apiKeySet (le formulaire d'édition ne le préremplit donc jamais).
+function maskProviderSecret<T extends { apiKey: string | null }>(provider: T) {
+  const { apiKey, ...rest } = provider;
+  return { ...rest, apiKeySet: !!apiKey };
+}
+
 router.get("/providers", asyncHandler(async (req, res) => {
   const providers = await prisma.provider.findMany({
     include: { _count: { select: { offers: true } } },
     orderBy: { createdAt: "desc" },
   });
-  res.json(providers);
+  res.json(providers.map(maskProviderSecret));
 }));
 
 router.post("/providers", asyncHandler(async (req, res) => {
-  const { name, slug, connectorKey, commissionType, commissionValue } = req.body;
+  const {
+    name, slug, connectorKey, commissionType, commissionValue,
+    apiBaseUrl, apiKey, apiAuthHeader, apiAuthPrefix, apiOrderPath,
+    apiStatusField, apiOrderIdField, apiConfirmedValue,
+  } = req.body;
   if (!name || !slug || !connectorKey) return res.status(400).json({ error: "name_slug_connectorKey_required" });
 
   const provider = await prisma.provider.create({
@@ -161,13 +172,25 @@ router.post("/providers", asyncHandler(async (req, res) => {
       connectorKey,
       commissionType: commissionType === "FIXED" ? "FIXED" : "PERCENTAGE",
       commissionValue: Number.isFinite(commissionValue) ? commissionValue : 500,
+      ...(apiBaseUrl !== undefined && { apiBaseUrl }),
+      ...(apiKey !== undefined && { apiKey }),
+      ...(apiAuthHeader !== undefined && { apiAuthHeader }),
+      ...(apiAuthPrefix !== undefined && { apiAuthPrefix }),
+      ...(apiOrderPath !== undefined && { apiOrderPath }),
+      ...(apiStatusField !== undefined && { apiStatusField }),
+      ...(apiOrderIdField !== undefined && { apiOrderIdField }),
+      ...(apiConfirmedValue !== undefined && { apiConfirmedValue }),
     },
   });
-  res.status(201).json(provider);
+  res.status(201).json(maskProviderSecret(provider));
 }));
 
 router.patch("/providers/:id", asyncHandler(async (req, res) => {
-  const { name, status, connectorKey, commissionType, commissionValue } = req.body;
+  const {
+    name, status, connectorKey, commissionType, commissionValue,
+    apiBaseUrl, apiKey, apiAuthHeader, apiAuthPrefix, apiOrderPath,
+    apiStatusField, apiOrderIdField, apiConfirmedValue,
+  } = req.body;
   const provider = await prisma.provider.update({
     where: { id: req.params.id },
     data: {
@@ -176,9 +199,19 @@ router.patch("/providers/:id", asyncHandler(async (req, res) => {
       ...(connectorKey !== undefined && { connectorKey }),
       ...(commissionType !== undefined && { commissionType }),
       ...(commissionValue !== undefined && { commissionValue }),
+      ...(apiBaseUrl !== undefined && { apiBaseUrl }),
+      // apiKey omis du body (undefined) : on garde la clé existante en base —
+      // le champ du formulaire reste vide tant que l'admin ne tape rien de nouveau.
+      ...(apiKey !== undefined && apiKey !== "" && { apiKey }),
+      ...(apiAuthHeader !== undefined && { apiAuthHeader }),
+      ...(apiAuthPrefix !== undefined && { apiAuthPrefix }),
+      ...(apiOrderPath !== undefined && { apiOrderPath }),
+      ...(apiStatusField !== undefined && { apiStatusField }),
+      ...(apiOrderIdField !== undefined && { apiOrderIdField }),
+      ...(apiConfirmedValue !== undefined && { apiConfirmedValue }),
     },
   });
-  res.json(provider);
+  res.json(maskProviderSecret(provider));
 }));
 
 // GET /admin/providers/:id — fiche fournisseur : infos, toutes ses offres (tous
@@ -219,7 +252,7 @@ router.get("/providers/:id", asyncHandler(async (req, res) => {
     totalCommission: confirmed.reduce((sum, o) => sum + o.platformFee, 0),
   };
 
-  res.json({ provider, offers, summary, orders });
+  res.json({ provider: maskProviderSecret(provider), offers, summary, orders });
 }));
 
 // ---- Produits ----

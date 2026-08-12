@@ -17,7 +17,7 @@ export async function submitOrderToProvider(orderId: string) {
     include: { provider: true, product: true },
   });
 
-  const connector = getConnector(order.provider.connectorKey);
+  const connector = getConnector(order.provider);
 
   const req: CreateOrderRequest = {
     serviceExternalId: order.product.slug,

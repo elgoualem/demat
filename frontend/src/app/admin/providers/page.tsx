@@ -8,11 +8,12 @@ import {
   createAdminProvider,
   updateAdminProvider,
   AdminProvider,
+  AdminProviderWrite,
   ApiError,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
-const CONNECTOR_KEYS = ["mock-telecom", "mock-finance", "mock-voyage"];
+const CONNECTOR_KEYS = ["mock-telecom", "mock-finance", "mock-voyage", "generic-rest"];
 const STATUS_OPTIONS = ["ACTIVE", "DEGRADED", "DOWN"] as const;
 
 export default function AdminProvidersPage() {
@@ -64,7 +65,7 @@ export default function AdminProvidersPage() {
     }
   }
 
-  async function handleFieldUpdate(id: string, data: Partial<AdminProvider>) {
+  async function handleFieldUpdate(id: string, data: AdminProviderWrite) {
     if (!token) return;
     setSavingId(id);
     try {
@@ -194,6 +195,11 @@ export default function AdminProvidersPage() {
                   <option key={k} value={k}>{k}</option>
                 ))}
               </select>
+              {connectorKey === "generic-rest" && (
+                <span className="text-xs text-stone-400">
+                  L&apos;URL de l&apos;API, la clé et le mapping de réponse se configurent depuis la fiche du fournisseur après création.
+                </span>
+              )}
             </label>
             <div className="flex gap-3">
               <label className="flex flex-1 flex-col gap-1.5 text-sm">

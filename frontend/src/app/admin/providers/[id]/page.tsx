@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, FormEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import AdminGuard from "@/components/AdminGuard";
-import { getAdminProviderDetail, updateAdminProvider, ProviderDetail, AdminProvider, ApiError } from "@/lib/api";
+import { getAdminProviderDetail, updateAdminProvider, ProviderDetail, AdminProvider, AdminProviderWrite, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, formatDate } from "@/lib/format";
 
 const STATUS_OPTIONS = ["ACTIVE", "DEGRADED", "DOWN"] as const;
+const CONNECTOR_KEYS = ["mock-telecom", "mock-finance", "mock-voyage", "generic-rest"];
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "En attente",
   CONFIRMED: "Confirmée",
@@ -25,11 +26,29 @@ export default function AdminProviderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [apiBaseUrl, setApiBaseUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [apiAuthHeader, setApiAuthHeader] = useState("Authorization");
+  const [apiAuthPrefix, setApiAuthPrefix] = useState("Bearer ");
+  const [apiOrderPath, setApiOrderPath] = useState("/orders");
+  const [apiStatusField, setApiStatusField] = useState("status");
+  const [apiOrderIdField, setApiOrderIdField] = useState("provider_order_id");
+  const [apiConfirmedValue, setApiConfirmedValue] = useState("confirmed");
+  const [savingApiConfig, setSavingApiConfig] = useState(false);
+
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      setData(await getAdminProviderDetail(token, params.id));
+      const result = await getAdminProviderDetail(token, params.id);
+      setData(result);
+      setApiBaseUrl(result.provider.apiBaseUrl ?? "");
+      setApiAuthHeader(result.provider.apiAuthHeader);
+      setApiAuthPrefix(result.provider.apiAuthPrefix);
+      setApiOrderPath(result.provider.apiOrderPath);
+      setApiStatusField(result.provider.apiStatusField);
+      setApiOrderIdField(result.provider.apiOrderIdField);
+      setApiConfirmedValue(result.provider.apiConfirmedValue);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
@@ -42,7 +61,32 @@ export default function AdminProviderDetailPage() {
     load();
   }, [load]);
 
-  async function handleUpdate(update: Partial<AdminProvider>) {
+  async function handleSaveApiConfig(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !data) return;
+    setSavingApiConfig(true);
+    setError(null);
+    try {
+      const updated = await updateAdminProvider(token, data.provider.id, {
+        apiBaseUrl,
+        apiAuthHeader,
+        apiAuthPrefix,
+        apiOrderPath,
+        apiStatusField,
+        apiOrderIdField,
+        apiConfirmedValue,
+        ...(apiKey && { apiKey }),
+      });
+      setData((prev) => (prev ? { ...prev, provider: { ...prev.provider, ...updated } } : prev));
+      setApiKey("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur inconnue");
+    } finally {
+      setSavingApiConfig(false);
+    }
+  }
+
+  async function handleUpdate(update: AdminProviderWrite) {
     if (!token || !data) return;
     setSaving(true);
     try {
@@ -70,18 +114,30 @@ export default function AdminProviderDetailPage() {
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="font-serif text-3xl text-stone-900">{provider.name}</h1>
-            <p className="mt-1 text-stone-500">{provider.slug} · connecteur {provider.connectorKey}</p>
+            <p className="mt-1 text-stone-500">{provider.slug}</p>
           </div>
-          <select
-            value={provider.status}
-            disabled={saving}
-            onChange={(e) => handleUpdate({ status: e.target.value as AdminProvider["status"] })}
-            className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={provider.connectorKey}
+              disabled={saving}
+              onChange={(e) => handleUpdate({ connectorKey: e.target.value })}
+              className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            >
+              {CONNECTOR_KEYS.map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+            <select
+              value={provider.status}
+              disabled={saving}
+              onChange={(e) => handleUpdate({ status: e.target.value as AdminProvider["status"] })}
+              className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -129,6 +185,110 @@ export default function AdminProviderDetailPage() {
             {provider.commissionType === "PERCENTAGE" ? "points de base (500 = 5%)" : "centimes"}
           </span>
         </div>
+
+        {provider.connectorKey === "generic-rest" && (
+          <>
+            <h2 className="mb-3 font-semibold text-stone-900">Connexion API</h2>
+            <form onSubmit={handleSaveApiConfig} className="mb-8 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+              <p className="mb-4 text-sm text-stone-500">
+                Contrat attendu : POST vers l&apos;URL ci-dessous avec <code>external_reference</code>,{" "}
+                <code>idempotency_key</code>, <code>amount</code>, <code>currency</code>. La réponse doit contenir un
+                champ de statut et, si succès, un identifiant de commande — leurs noms sont configurables ci-dessous
+                si l&apos;API du fournisseur ne suit pas exactement les noms par défaut.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">URL de base de l&apos;API</span>
+                  <input
+                    type="url"
+                    value={apiBaseUrl}
+                    onChange={(e) => setApiBaseUrl(e.target.value)}
+                    placeholder="https://api.fournisseur.com"
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">
+                    Clé API {provider.apiKeySet && <span className="text-emerald-600">(déjà configurée)</span>}
+                  </span>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={provider.apiKeySet ? "•••••••• (laisser vide pour ne pas changer)" : "Clé API"}
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">En-tête d&apos;authentification</span>
+                  <input
+                    type="text"
+                    value={apiAuthHeader}
+                    onChange={(e) => setApiAuthHeader(e.target.value)}
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Préfixe de la valeur</span>
+                  <input
+                    type="text"
+                    value={apiAuthPrefix}
+                    onChange={(e) => setApiAuthPrefix(e.target.value)}
+                    placeholder="Bearer "
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Chemin de création de commande</span>
+                  <input
+                    type="text"
+                    value={apiOrderPath}
+                    onChange={(e) => setApiOrderPath(e.target.value)}
+                    placeholder="/orders"
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Champ de statut dans la réponse</span>
+                  <input
+                    type="text"
+                    value={apiStatusField}
+                    onChange={(e) => setApiStatusField(e.target.value)}
+                    placeholder="status"
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Champ de l&apos;identifiant commande</span>
+                  <input
+                    type="text"
+                    value={apiOrderIdField}
+                    onChange={(e) => setApiOrderIdField(e.target.value)}
+                    placeholder="provider_order_id"
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Valeur signifiant &laquo; confirmée &raquo;</span>
+                  <input
+                    type="text"
+                    value={apiConfirmedValue}
+                    onChange={(e) => setApiConfirmedValue(e.target.value)}
+                    placeholder="confirmed"
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                disabled={savingApiConfig}
+                className="mt-4 rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingApiConfig ? "Enregistrement…" : "Enregistrer la config API"}
+              </button>
+            </form>
+          </>
+        )}
 
         <h2 className="mb-3 font-semibold text-stone-900">Offres ({offers.length})</h2>
         <div className="mb-8 overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
