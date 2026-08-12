@@ -329,6 +329,39 @@ export function getAdminProviders(token: string): Promise<AdminProvider[]> {
   return adminRequest(token, "/admin/providers");
 }
 
+export interface ProviderOffer {
+  id: string;
+  price: number;
+  rating: number | null;
+  salesCount: number;
+  deliverySeconds: number | null;
+  kycVerified: boolean;
+  isActive: boolean;
+  product: { id: string; name: string; slug: string; category: string };
+}
+
+export interface ProviderOrder {
+  id: string;
+  status: Order["status"];
+  amount: number;
+  platformFee: number;
+  currency: string;
+  createdAt: string;
+  product: { name: string };
+  user: { email: string };
+}
+
+export interface ProviderDetail {
+  provider: Omit<AdminProvider, "_count">;
+  offers: ProviderOffer[];
+  summary: { orderCount: number; confirmedCount: number; failedCount: number; totalAmount: number; totalCommission: number };
+  orders: ProviderOrder[];
+}
+
+export function getAdminProviderDetail(token: string, id: string): Promise<ProviderDetail> {
+  return adminRequest(token, `/admin/providers/${id}`);
+}
+
 export function createAdminProvider(
   token: string,
   data: { name: string; slug: string; connectorKey: string; commissionType: string; commissionValue: number }

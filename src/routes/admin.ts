@@ -181,6 +181,47 @@ router.patch("/providers/:id", asyncHandler(async (req, res) => {
   res.json(provider);
 }));
 
+// GET /admin/providers/:id — fiche fournisseur : infos, toutes ses offres (tous
+// produits, actives et inactives), et un historique + diagnostic de ses commandes.
+router.get("/providers/:id", asyncHandler(async (req, res) => {
+  const provider = await prisma.provider.findUnique({ where: { id: req.params.id } });
+  if (!provider) return res.status(404).json({ error: "provider_not_found" });
+
+  const [offers, orders] = await Promise.all([
+    prisma.offer.findMany({
+      where: { providerId: provider.id },
+      include: { product: { select: { id: true, name: true, slug: true, category: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.order.findMany({
+      where: { providerId: provider.id },
+      select: {
+        id: true,
+        status: true,
+        amount: true,
+        platformFee: true,
+        currency: true,
+        createdAt: true,
+        product: { select: { name: true } },
+        user: { select: { email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  const confirmed = orders.filter((o) => o.status === "CONFIRMED");
+  const summary = {
+    orderCount: orders.length,
+    confirmedCount: confirmed.length,
+    failedCount: orders.filter((o) => o.status === "FAILED").length,
+    totalAmount: confirmed.reduce((sum, o) => sum + o.amount, 0),
+    totalCommission: confirmed.reduce((sum, o) => sum + o.platformFee, 0),
+  };
+
+  res.json({ provider, offers, summary, orders });
+}));
+
 // ---- Produits ----
 
 router.get("/products", asyncHandler(async (req, res) => {
