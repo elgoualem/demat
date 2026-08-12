@@ -67,14 +67,14 @@ export default function CataloguePage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dématérialisez tout ce qui peut l&apos;être</h1>
-        <p className="mt-2 text-slate-500">Téléphonie, argent, voyage — un seul endroit pour souscrire et suivre vos services.</p>
-        <p className="mt-1 text-sm text-slate-400">Paiement sécurisé · Confirmation instantanée</p>
+        <h1 className="font-serif text-4xl tracking-tight text-stone-900">Dématérialisez tout ce qui peut l&apos;être</h1>
+        <p className="mt-2 text-stone-500">Téléphonie, argent, voyage — un seul endroit pour souscrire et suivre vos services.</p>
+        <p className="mt-1 text-sm text-stone-400">Paiement sécurisé · Confirmation instantanée</p>
       </div>
 
       <div className="relative mb-8">
         <svg
-          className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -86,17 +86,17 @@ export default function CataloguePage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher un service, un fournisseur…"
-          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-slate-900 shadow-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+          className="w-full rounded-xl border border-stone-200 bg-white py-3 pl-12 pr-4 text-stone-900 shadow-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         />
       </div>
 
       {orgs.length > 0 && (
         <label className="mb-6 flex w-fit items-center gap-2 text-sm">
-          <span className="font-medium text-slate-700">Commander pour :</span>
+          <span className="font-medium text-stone-700">Commander pour :</span>
           <select
             value={buyingAs}
             onChange={(e) => setBuyingAs(e.target.value)}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           >
             <option value="">Moi-même</option>
             {orgs.map((org) => (
@@ -113,7 +113,7 @@ export default function CataloguePage() {
           <button
             onClick={() => setActiveCategory(null)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-              activeCategory === null ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+              activeCategory === null ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
             }`}
           >
             Tout
@@ -126,7 +126,7 @@ export default function CataloguePage() {
                 key={category}
                 onClick={() => setActiveCategory(category)}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  active ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+                  active ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
                 }`}
               >
                 {meta.emoji} {meta.label}
@@ -139,9 +139,9 @@ export default function CataloguePage() {
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <p className="text-slate-500">Chargement du catalogue…</p>
+        <p className="text-stone-500">Chargement du catalogue…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-slate-500">
+        <p className="text-stone-500">
           {search ? `Aucun résultat pour « ${search} ».` : "Aucun service dans cette catégorie pour l'instant."}
         </p>
       ) : (
@@ -151,22 +151,22 @@ export default function CataloguePage() {
             return (
               <div
                 key={service.id}
-                className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:shadow-md"
               >
                 <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${meta.badge}`}>
                   {meta.emoji} {meta.label}
                 </span>
                 <div>
-                  <h2 className="font-semibold text-slate-900">{service.name}</h2>
-                  <p className="text-sm text-slate-500">{service.provider.name}</p>
+                  <h2 className="font-semibold text-stone-900">{service.name}</h2>
+                  <p className="text-sm text-stone-500">{service.provider.name}</p>
                 </div>
-                <p className="flex-1 text-sm text-slate-600">{service.description}</p>
+                <p className="flex-1 text-sm text-stone-600">{service.description}</p>
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-lg font-bold text-slate-900">{formatPrice(service.price, service.currency)}</span>
+                  <span className="text-lg font-bold text-stone-900">{formatPrice(service.price, service.currency)}</span>
                   <button
                     onClick={() => handleOrder(service.id)}
                     disabled={orderingId === service.id}
-                    className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {orderingId === service.id ? "Commande…" : "Commander"}
                   </button>

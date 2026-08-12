@@ -95,7 +95,7 @@ export default function OrganizationPage() {
     }
   }
 
-  if (loading && !org) return <p className="text-slate-500">Chargement…</p>;
+  if (loading && !org) return <p className="text-stone-500">Chargement…</p>;
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!org) return null;
 
@@ -103,22 +103,22 @@ export default function OrganizationPage() {
 
   return (
     <div>
-      <Link href="/organizations" className="mb-4 inline-block text-sm text-slate-500 hover:text-slate-700">
+      <Link href="/organizations" className="mb-4 inline-block text-sm text-stone-500 hover:text-stone-700">
         ← Organisations
       </Link>
-      <h1 className="mb-1 text-2xl font-bold text-slate-900">{org.name}</h1>
-      {org.vatNumber && <p className="mb-6 text-sm text-slate-500">{org.vatNumber}</p>}
+      <h1 className="mb-1 font-serif text-3xl text-stone-900">{org.name}</h1>
+      {org.vatNumber && <p className="mb-6 text-sm text-stone-500">{org.vatNumber}</p>}
 
-      <div className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 font-semibold text-slate-900">Membres</h2>
+      <div className="mb-8 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 font-semibold text-stone-900">Membres</h2>
         <ul className="mb-4 flex flex-col gap-2">
           {org.memberships?.map((m) => (
             <li key={m.user.id} className="flex items-center justify-between text-sm">
-              <span className="text-slate-700">
-                {m.user.email} {m.user.id === user?.id && <span className="text-slate-400">(toi)</span>}
+              <span className="text-stone-700">
+                {m.user.email} {m.user.id === user?.id && <span className="text-stone-400">(toi)</span>}
               </span>
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-600">
                   {ROLE_LABEL[m.role]}
                 </span>
                 {canManage && m.role !== "OWNER" && (
@@ -132,23 +132,23 @@ export default function OrganizationPage() {
         </ul>
 
         {canManage && (
-          <form onSubmit={handleAddMember} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+          <form onSubmit={handleAddMember} className="flex flex-wrap items-end gap-3 border-t border-stone-100 pt-4">
             <label className="flex flex-1 min-w-[180px] flex-col gap-1.5 text-sm">
-              <span className="font-medium text-slate-700">Email</span>
+              <span className="font-medium text-stone-700">Email</span>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               />
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-slate-700">Rôle</span>
+              <span className="font-medium text-stone-700">Rôle</span>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as MembershipRole)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               >
                 <option value="MEMBER">Membre</option>
                 <option value="ADMIN">Admin</option>
@@ -157,7 +157,7 @@ export default function OrganizationPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? "Ajout…" : "Ajouter"}
             </button>
@@ -166,24 +166,24 @@ export default function OrganizationPage() {
         {memberError && <p className="mt-2 text-sm text-red-600">{memberError}</p>}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 font-semibold text-slate-900">Commandes de l&apos;organisation</h2>
+      <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 font-semibold text-stone-900">Commandes de l&apos;organisation</h2>
         {orders.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucune commande passée pour le compte de l&apos;organisation.</p>
+          <p className="text-sm text-stone-500">Aucune commande passée pour le compte de l&apos;organisation.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {orders.map((order) => (
               <li key={order.id}>
                 <Link
                   href={`/orders/${order.id}`}
-                  className="flex items-center justify-between rounded-md px-2 py-2 text-sm transition hover:bg-slate-50"
+                  className="flex items-center justify-between rounded-lg px-2 py-2 text-sm transition hover:bg-stone-50"
                 >
-                  <span className="text-slate-700">
+                  <span className="text-stone-700">
                     {order.id.slice(0, 8)} — {order.user?.email}
                   </span>
                   <span className="flex items-center gap-3">
-                    <span className="text-slate-500">{formatPrice(order.amount, order.currency)}</span>
-                    <span className="text-slate-400">{STATUS_LABEL[order.status]}</span>
+                    <span className="text-stone-500">{formatPrice(order.amount, order.currency)}</span>
+                    <span className="text-stone-400">{STATUS_LABEL[order.status]}</span>
                   </span>
                 </Link>
               </li>
