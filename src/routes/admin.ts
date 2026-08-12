@@ -49,20 +49,37 @@ router.get("/commissions", asyncHandler(async (req, res) => {
   });
 }));
 
-// GET /admin/analytics?days=30 — chiffre d'affaires (amount) et commission
-// (platformFee) par fournisseur, ventilés par jour, pour comparer plusieurs
-// fournisseurs sur une période — + un diagnostic agrégé par fournisseur
-// (volume, taux de confirmation, panier moyen), tous statuts confondus.
+// GET /admin/analytics?days=30 (ou ?from=YYYY-MM-DD&to=YYYY-MM-DD) — chiffre
+// d'affaires (amount) et commission (platformFee) par fournisseur, ventilés
+// par jour, pour comparer plusieurs fournisseurs sur une période — + un
+// diagnostic agrégé par fournisseur (volume, taux de confirmation, panier
+// moyen), tous statuts confondus. from/to prime sur days quand fournis.
 router.get("/analytics", asyncHandler(async (req, res) => {
-  const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-  since.setHours(0, 0, 0, 0);
+  const parsedFrom = req.query.from ? new Date(String(req.query.from)) : null;
+  const parsedTo = req.query.to ? new Date(String(req.query.to)) : null;
+  const hasCustomRange = parsedFrom && parsedTo && !isNaN(+parsedFrom) && !isNaN(+parsedTo);
+
+  let since: Date;
+  let until: Date;
+  if (hasCustomRange) {
+    since = new Date(parsedFrom!);
+    since.setHours(0, 0, 0, 0);
+    until = new Date(parsedTo!);
+    until.setHours(23, 59, 59, 999);
+    if (until < since) [since, until] = [until, since];
+  } else {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+    since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+    until = new Date();
+    until.setHours(23, 59, 59, 999);
+  }
 
   const [providers, orders] = await Promise.all([
     prisma.provider.findMany({ select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
     prisma.order.findMany({
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since, lte: until } },
       select: { providerId: true, status: true, amount: true, platformFee: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
@@ -102,6 +119,7 @@ router.get("/analytics", asyncHandler(async (req, res) => {
 
   res.json({
     since: since.toISOString(),
+    until: until.toISOString(),
     providers,
     daily,
     summary: providers.map((p) => {
