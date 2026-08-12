@@ -33,7 +33,10 @@ Endpoints :
 - `GET /products?category=...` — catalogue (prix "à partir de" + nombre d'offres actives par produit)
 - `GET /products/:slug` — détail produit + offres actives triées par prix (fournisseur, note, ventes, délai, KYC)
 - `POST /orders` (Bearer JWT) — `{ "offerId": "...", "organizationId": "..." }` (organizationId optionnel : commande B2C si absent, B2B rattachée à l'organisation sinon)
-- `GET /orders/:id` (Bearer JWT) — auteur de la commande ou membre de son organisation
+- `GET /orders/:id` (Bearer JWT) — auteur de la commande, membre de son organisation, ou admin
+- `GET /orders/:id/invoice.pdf` (Bearer JWT, même contrôle d'accès) — PDF de la facture, si la commande en a une
+
+Factures : une facture (`Invoice`) est créée automatiquement dès qu'une commande passe au statut Confirmée (parcours natif — le seul implémenté). Numéro légal séquentiel attribué par Postgres (jamais recalculé en JS, donc jamais de collision), formaté `FA-{année}-{numéro sur 6 chiffres}`. Le PDF (généré par `src/billing/generateInvoicePdf.ts`) inclut l'identité légale du vendeur (`COMPANY_NAME`, `COMPANY_ADDRESS`, `COMPANY_REGISTRATION_NUMBER`, `COMPANY_VAT_NUMBER` — affiche "à compléter" tant qu'ils ne sont pas renseignés en env, pour ne jamais faire passer un PDF incomplet pour une vraie facture), l'acheteur (particulier ou organisation B2B avec son n° de TVA), le détail de la ligne, et la répartition HT/TVA/TTC si `DEFAULT_VAT_RATE` est configuré (aucun taux de TVA n'est inventé par défaut).
 
 Organisations (B2B, Bearer JWT requis) :
 - `POST /organizations` — `{ "name": "...", "vatNumber": "..." }` → crée l'organisation, créateur = OWNER

@@ -177,7 +177,14 @@ model Invoice {
   id        String   @id @default(uuid())
   order     Order    @relation(fields: [orderId], references: [id])
   orderId   String   @unique
+  // Numéro légal séquentiel, attribué par Postgres (jamais recalculé en JS —
+  // évite toute collision entre factures émises en même temps). Formaté à
+  // l'affichage en FA-{année}-{numéro sur 6 chiffres}, cf. src/billing/invoiceNumber.ts.
+  sequenceNumber Int @unique @default(autoincrement())
   amount    Int
+  // Taux de TVA en points de base (2000 = 20 %) ; null si non applicable
+  // (ex. franchise en base) — jamais un taux inventé par défaut.
+  vatRate   Int?
   currency  String   @default("EUR")
   status    String   @default("ISSUED") // ISSUED, REFUNDED
   issuedAt  DateTime @default(now())
