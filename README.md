@@ -51,7 +51,7 @@ Commission plateforme : chaque `Provider` a sa propre politique (`commissionType
 Admin (Bearer JWT, réservé à `User.isAdmin = true` — toutes les routes `/admin/*` répondent 403 sinon) :
 - `GET /admin/commissions` — commission totale, détail par fournisseur, historique des commandes confirmées
 - `GET /admin/analytics?days=30` — chiffre d'affaires et commission par fournisseur, ventilés par jour (pour comparer plusieurs fournisseurs dans le temps), + diagnostic agrégé (volume de commandes, taux de confirmation, panier moyen) tous statuts confondus
-- `GET/POST/PATCH /admin/providers[/:id]` — lister, créer, modifier (statut, commission, connecteur)
+- `GET/POST/PATCH /admin/providers[/:id]` — lister, créer, modifier (statut, commission, connecteur) ; `GET /admin/providers/:id` renvoie la fiche complète (toutes ses offres tous produits confondus, historique + diagnostic de ses commandes) — accessible depuis `/admin/providers/:id` côté frontend
 - `GET/POST/PATCH /admin/products[/:id]` — lister, créer, modifier (le détail `:id` inclut toutes les offres, actives et inactives)
 - `POST/PATCH /admin/offers[/:id]` — créer/modifier une offre (prix, note, ventes, délai, KYC, actif)
 - `GET /admin/orders` — toutes les commandes de la plateforme, tous clients confondus, avec `platformFee` visible

@@ -105,7 +105,9 @@ export default function AdminProvidersPage() {
                 {providers.map((p) => (
                   <tr key={p.id} className="border-b border-stone-50 last:border-0">
                     <td className="p-3">
-                      <p className="font-medium text-stone-900">{p.name}</p>
+                      <Link href={`/admin/providers/${p.id}`} className="font-medium text-brand-600 hover:text-brand-700">
+                        {p.name}
+                      </Link>
                       <p className="text-xs text-stone-400">{p.slug}</p>
                     </td>
                     <td className="p-3 text-stone-600">{p.connectorKey}</td>
