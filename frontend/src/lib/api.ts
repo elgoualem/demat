@@ -66,6 +66,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
+  isAdmin?: boolean;
 }
 
 export interface AuthResponse {
@@ -188,6 +189,143 @@ export function removeOrganizationMember(token: string, id: string, userId: stri
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
+}
+
+// ---- Admin ----
+// Réservé aux comptes User.isAdmin = true (backend renvoie 403 sinon).
+
+export interface AdminProvider {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "DEGRADED" | "DOWN";
+  connectorKey: string;
+  commissionType: "PERCENTAGE" | "FIXED";
+  commissionValue: number;
+  createdAt: string;
+  _count: { offers: number };
+}
+
+export interface AdminProduct {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  description: string;
+  currency: string;
+  consumptionType: "UNIT" | "SUBSCRIPTION" | "USAGE";
+  journeyType: "NATIVE" | "HYBRID" | "EXTERNAL";
+  isActive: boolean;
+  createdAt: string;
+  _count: { offers: number };
+}
+
+export interface AdminOffer {
+  id: string;
+  price: number;
+  rating: number | null;
+  salesCount: number;
+  deliverySeconds: number | null;
+  kycVerified: boolean;
+  isActive: boolean;
+  provider: { id: string; name: string; slug: string };
+}
+
+export interface AdminProductDetail extends Omit<AdminProduct, "_count"> {
+  offers: AdminOffer[];
+}
+
+export interface AdminOrder {
+  id: string;
+  status: Order["status"];
+  amount: number;
+  platformFee: number;
+  currency: string;
+  createdAt: string;
+  confirmedAt: string | null;
+  user: { id: string; email: string; name: string | null };
+  product: { id: string; name: string; slug: string };
+  provider: { id: string; name: string; slug: string };
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  isAdmin: boolean;
+  createdAt: string;
+}
+
+export interface CommissionsReport {
+  totalCommission: number;
+  orderCount: number;
+  byProvider: Array<{ providerId: string; providerName: string; totalCommission: number; orderCount: number }>;
+  orders: Array<{ id: string; amount: number; platformFee: number; currency: string; createdAt: string; provider: { id: string; name: string } }>;
+}
+
+function adminRequest<T>(token: string, path: string, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, { ...options, headers: { Authorization: `Bearer ${token}`, ...options.headers } });
+}
+
+export function getCommissionsReport(token: string): Promise<CommissionsReport> {
+  return adminRequest(token, "/admin/commissions");
+}
+
+export function getAdminProviders(token: string): Promise<AdminProvider[]> {
+  return adminRequest(token, "/admin/providers");
+}
+
+export function createAdminProvider(
+  token: string,
+  data: { name: string; slug: string; connectorKey: string; commissionType: string; commissionValue: number }
+): Promise<AdminProvider> {
+  return adminRequest(token, "/admin/providers", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updateAdminProvider(token: string, id: string, data: Partial<AdminProvider>): Promise<AdminProvider> {
+  return adminRequest(token, `/admin/providers/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function getAdminProducts(token: string): Promise<AdminProduct[]> {
+  return adminRequest(token, "/admin/products");
+}
+
+export function getAdminProduct(token: string, id: string): Promise<AdminProductDetail> {
+  return adminRequest(token, `/admin/products/${id}`);
+}
+
+export function createAdminProduct(
+  token: string,
+  data: { name: string; slug: string; category: string; description: string; consumptionType?: string; journeyType?: string; currency?: string }
+): Promise<AdminProduct> {
+  return adminRequest(token, "/admin/products", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updateAdminProduct(token: string, id: string, data: Partial<AdminProduct>): Promise<AdminProduct> {
+  return adminRequest(token, `/admin/products/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function createAdminOffer(
+  token: string,
+  data: { productId: string; providerId: string; price: number; rating?: number; salesCount?: number; deliverySeconds?: number; kycVerified?: boolean }
+): Promise<AdminOffer> {
+  return adminRequest(token, "/admin/offers", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updateAdminOffer(token: string, id: string, data: Partial<AdminOffer>): Promise<AdminOffer> {
+  return adminRequest(token, `/admin/offers/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function getAdminOrders(token: string): Promise<AdminOrder[]> {
+  return adminRequest(token, "/admin/orders");
+}
+
+export function getAdminUsers(token: string): Promise<AdminUser[]> {
+  return adminRequest(token, "/admin/users");
+}
+
+export function updateAdminUser(token: string, id: string, isAdmin: boolean): Promise<AdminUser> {
+  return adminRequest(token, `/admin/users/${id}`, { method: "PATCH", body: JSON.stringify({ isAdmin }) });
 }
 
 export { ApiError };

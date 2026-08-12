@@ -18,6 +18,11 @@ export default function Nav() {
               <Link href="/organizations" className="font-medium text-stone-700 hover:text-stone-900">
                 Organisations
               </Link>
+              {user.isAdmin && (
+                <Link href="/admin" className="font-medium text-brand-600 hover:text-brand-700">
+                  Admin
+                </Link>
+              )}
               <span className="text-stone-500">{user.email}</span>
               <button
                 onClick={logout}
