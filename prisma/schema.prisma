@@ -1,9 +1,12 @@
 // Schéma MVP : catalogue, comptes, commandes, factures, event log.
-// Un fournisseur = une ligne Provider. Un service = une offre normalisée liée à un Provider.
+// Product = l'item générique du catalogue (ce que le client cherche, ex. "Recharge 20Go").
+// Offer = la cotation d'un Provider donné sur un Product donné (son prix, sa note, ses ventes) —
+// plusieurs fournisseurs peuvent coter le même Product, le client choisit parmi les offres.
 // Chaque commande génère des Event (traçabilité de bout en bout, quel que soit le parcours).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -37,12 +40,52 @@ enum ProviderStatus {
   DOWN
 }
 
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum CommissionType {
+  PERCENTAGE // commissionValue en points de base (500 = 5,00 %)
+  FIXED      // commissionValue en centimes
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  orders    Order[]
+  id          String       @id @default(uuid())
+  email       String       @unique
+  name        String?
+  // Opérateur de la plateforme (toi) : accès aux revenus de commission,
+  // invisibles pour les clients. Pas de self-service — flag posé manuellement
+  // ou via ADMIN_EMAIL au seed.
+  isAdmin     Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  orders      Order[]
+  memberships Membership[]
+}
+
+// Compte B2B : plusieurs utilisateurs (Membership) rattachés à une même
+// organisation, pour la facturation consolidée des commandes passées
+// pour le compte de l'entreprise (Order.organizationId).
+model Organization {
+  id          String       @id @default(uuid())
+  name        String
+  vatNumber   String?
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  orders      Order[]
+}
+
+model Membership {
+  id             String         @id @default(uuid())
+  user           User           @relation(fields: [userId], references: [id])
+  userId         String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  organizationId String
+  role           MembershipRole @default(MEMBER)
+  createdAt      DateTime       @default(now())
+
+  @@unique([userId, organizationId])
 }
 
 model Provider {
@@ -52,43 +95,79 @@ model Provider {
   status    ProviderStatus @default(ACTIVE)
   // connectorKey identifie quel connecteur (src/connectors) traite ce fournisseur
   connectorKey String
+  // Politique de commission plateforme, propre à chaque fournisseur (négociée
+  // individuellement) — jamais exposée au client, prélevée sur le prix qu'il paie.
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionValue Int            @default(500) // 5,00 % par défaut
   createdAt DateTime       @default(now())
-  services  Service[]
+  offers    Offer[]
   orders    Order[]
 }
 
-model Service {
+model Product {
   id              String          @id @default(uuid())
-  provider        Provider        @relation(fields: [providerId], references: [id])
-  providerId      String
   name            String
   slug            String          @unique
   category        String
   description     String
-  price           Int             // en centimes
   currency        String          @default("EUR")
   consumptionType ConsumptionType @default(UNIT)
   journeyType     JourneyType     @default(NATIVE)
   isActive        Boolean         @default(true)
   createdAt       DateTime        @default(now())
+  offers          Offer[]
   orders          Order[]
 }
 
+// Cotation d'un Provider sur un Product : c'est cette ligne, pas le Product,
+// qui porte le prix — plusieurs fournisseurs peuvent coter le même produit,
+// le client compare et choisit (voir GET /products/:slug).
+model Offer {
+  id              String   @id @default(uuid())
+  product         Product  @relation(fields: [productId], references: [id])
+  productId       String
+  provider        Provider @relation(fields: [providerId], references: [id])
+  providerId      String
+  price           Int      // en centimes
+  rating          Float?
+  salesCount      Int      @default(0)
+  deliverySeconds Int?
+  kycVerified     Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  orders          Order[]
+
+  @@unique([productId, providerId])
+}
+
 model Order {
-  id                 String      @id @default(uuid())
-  user               User        @relation(fields: [userId], references: [id])
+  id                 String        @id @default(uuid())
+  user               User          @relation(fields: [userId], references: [id])
   userId             String
-  service            Service     @relation(fields: [serviceId], references: [id])
-  serviceId          String
-  provider           Provider    @relation(fields: [providerId], references: [id])
+  // Rattachement optionnel à une organisation : commande passée pour le compte
+  // de l'entreprise (B2B, facturation consolidée) plutôt qu'à titre personnel (B2C).
+  organization       Organization? @relation(fields: [organizationId], references: [id])
+  organizationId     String?
+  product            Product       @relation(fields: [productId], references: [id])
+  productId          String
+  // Offre choisie par le client (fige le fournisseur ET le prix cotés au moment
+  // de la commande, même si l'offre change ou est désactivée par la suite).
+  offer              Offer         @relation(fields: [offerId], references: [id])
+  offerId            String
+  provider           Provider      @relation(fields: [providerId], references: [id])
   providerId         String
-  status             OrderStatus @default(PENDING)
+  status             OrderStatus   @default(PENDING)
   amount             Int
-  currency           String      @default("EUR")
+  // Commission plateforme prélevée sur `amount`, calculée à la création selon
+  // la politique du fournisseur (Provider.commissionType/commissionValue).
+  // Jamais renvoyée par les routes accessibles aux clients (voir routes/orders.ts) —
+  // uniquement consultable par un admin via GET /admin/commissions.
+  platformFee        Int           @default(0)
+  currency           String        @default("EUR")
   journeyType        JourneyType
-  providerOrderId    String?     // id renvoyé par le fournisseur, si natif/hybride
-  idempotencyKey     String      @unique
-  createdAt          DateTime    @default(now())
+  providerOrderId    String?       // id renvoyé par le fournisseur, si natif/hybride
+  idempotencyKey     String        @unique
+  createdAt          DateTime      @default(now())
   confirmedAt        DateTime?
   invoice            Invoice?
   events             Event[]
