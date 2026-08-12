@@ -282,13 +282,17 @@ export interface AnalyticsSummary {
 
 export interface Analytics {
   since: string;
+  until: string;
   providers: Array<{ id: string; name: string }>;
   daily: AnalyticsDailyPoint[];
   summary: AnalyticsSummary[];
 }
 
-export function getAdminAnalytics(token: string, days: number): Promise<Analytics> {
-  return adminRequest(token, `/admin/analytics?days=${days}`);
+export type AnalyticsRange = { days: number } | { from: string; to: string };
+
+export function getAdminAnalytics(token: string, range: AnalyticsRange): Promise<Analytics> {
+  const query = "days" in range ? `days=${range.days}` : `from=${range.from}&to=${range.to}`;
+  return adminRequest(token, `/admin/analytics?${query}`);
 }
 
 function adminRequest<T>(token: string, path: string, options: RequestInit = {}): Promise<T> {

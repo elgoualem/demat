@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import AdminGuard from "@/components/AdminGuard";
-import { getAdminAnalytics, Analytics, ApiError } from "@/lib/api";
+import { getAdminAnalytics, Analytics, AnalyticsRange, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
 
@@ -29,27 +29,38 @@ const DAY_OPTIONS = [
 
 type Metric = "amount" | "platformFee";
 
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
 function shortDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
 }
 
 export default function AdminAnalyticsPage() {
   const { token } = useAuth();
-  const [days, setDays] = useState(30);
+  const [preset, setPreset] = useState<number | "custom">(30);
+  const [customFrom, setCustomFrom] = useState(() => isoDate(new Date(Date.now() - 30 * 86400000)));
+  const [customTo, setCustomTo] = useState(() => isoDate(new Date()));
   const [metric, setMetric] = useState<Metric>("amount");
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTable, setShowTable] = useState(false);
 
+  const range: AnalyticsRange = preset === "custom" ? { from: customFrom, to: customTo } : { days: preset };
+
   useEffect(() => {
     if (!token) return;
+    if (preset === "custom" && (!customFrom || !customTo)) return;
     setLoading(true);
-    getAdminAnalytics(token, days)
+    getAdminAnalytics(token, range)
       .then(setData)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur inconnue"))
       .finally(() => setLoading(false));
-  }, [token, days]);
+    // `range` est recréé à chaque rendu ; on ne redéclenche que sur ses entrées réelles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, preset, customFrom, customTo]);
 
   // Fournisseurs ayant au moins une commande confirmée sur la période : seuls
   // eux tracent une ligne, mais leur couleur reste indexée sur la liste
@@ -82,19 +93,27 @@ export default function AdminAnalyticsPage() {
         <h1 className="mb-1 font-serif text-3xl text-stone-900">Analytique</h1>
         <p className="mb-6 text-stone-500">Chiffre d&apos;affaires et commission par fournisseur, comparés dans le temps.</p>
 
-        <div className="mb-6 flex flex-wrap items-center gap-4">
-          <div className="flex gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap gap-2">
             {DAY_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => setDays(opt.value)}
+                onClick={() => setPreset(opt.value)}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  days === opt.value ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
+                  preset === opt.value ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
                 }`}
               >
                 {opt.label}
               </button>
             ))}
+            <button
+              onClick={() => setPreset("custom")}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                preset === "custom" ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
+              }`}
+            >
+              Dates personnalisées
+            </button>
           </div>
           <div className="flex gap-2">
             <button
@@ -115,6 +134,32 @@ export default function AdminAnalyticsPage() {
             </button>
           </div>
         </div>
+
+        {preset === "custom" && (
+          <div className="mb-6 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium text-stone-700">Du</span>
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium text-stone-700">Au</span>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom}
+                max={isoDate(new Date())}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+            </label>
+          </div>
+        )}
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
