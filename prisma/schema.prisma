@@ -99,6 +99,23 @@ model Provider {
   // individuellement) — jamais exposée au client, prélevée sur le prix qu'il paie.
   commissionType  CommissionType @default(PERCENTAGE)
   commissionValue Int            @default(500) // 5,00 % par défaut
+
+  // Config du connecteur REST générique (connectorKey = "generic-rest") — sans
+  // cela, connectorKey doit pointer vers un connecteur codé en dur (src/connectors).
+  // apiKey n'est jamais renvoyée en clair par l'API admin (voir routes/admin.ts) :
+  // c'est un secret write-only, comme n'importe quelle gestion de clé API.
+  apiBaseUrl        String?
+  apiKey            String?
+  apiAuthHeader     String  @default("Authorization")
+  apiAuthPrefix     String  @default("Bearer ")
+  apiOrderPath      String  @default("/orders")
+  // Chemins (dot-path simple, ex. "data.status") pour lire la réponse du
+  // fournisseur — évite d'écrire un connecteur dédié pour un JSON légèrement
+  // différent du contrat par défaut documenté dans le README.
+  apiStatusField    String  @default("status")
+  apiOrderIdField   String  @default("provider_order_id")
+  apiConfirmedValue String  @default("confirmed")
+
   createdAt DateTime       @default(now())
   offers    Offer[]
   orders    Order[]

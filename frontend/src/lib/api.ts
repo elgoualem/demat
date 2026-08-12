@@ -223,8 +223,36 @@ export interface AdminProvider {
   connectorKey: string;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: number;
+  // Config du connecteur REST générique (connectorKey === "generic-rest").
+  // apiKey n'est jamais renvoyée par l'API — apiKeySet indique juste si une clé
+  // est enregistrée ; un nouveau champ vide dans le formulaire ne l'écrase pas.
+  apiBaseUrl: string | null;
+  apiKeySet: boolean;
+  apiAuthHeader: string;
+  apiAuthPrefix: string;
+  apiOrderPath: string;
+  apiStatusField: string;
+  apiOrderIdField: string;
+  apiConfirmedValue: string;
   createdAt: string;
   _count: { offers: number };
+}
+
+export interface AdminProviderWrite {
+  name?: string;
+  slug?: string;
+  status?: AdminProvider["status"];
+  connectorKey?: string;
+  commissionType?: AdminProvider["commissionType"];
+  commissionValue?: number;
+  apiBaseUrl?: string;
+  apiKey?: string;
+  apiAuthHeader?: string;
+  apiAuthPrefix?: string;
+  apiOrderPath?: string;
+  apiStatusField?: string;
+  apiOrderIdField?: string;
+  apiConfirmedValue?: string;
 }
 
 export interface AdminProduct {
@@ -362,14 +390,11 @@ export function getAdminProviderDetail(token: string, id: string): Promise<Provi
   return adminRequest(token, `/admin/providers/${id}`);
 }
 
-export function createAdminProvider(
-  token: string,
-  data: { name: string; slug: string; connectorKey: string; commissionType: string; commissionValue: number }
-): Promise<AdminProvider> {
+export function createAdminProvider(token: string, data: AdminProviderWrite): Promise<AdminProvider> {
   return adminRequest(token, "/admin/providers", { method: "POST", body: JSON.stringify(data) });
 }
 
-export function updateAdminProvider(token: string, id: string, data: Partial<AdminProvider>): Promise<AdminProvider> {
+export function updateAdminProvider(token: string, id: string, data: AdminProviderWrite): Promise<AdminProvider> {
   return adminRequest(token, `/admin/providers/${id}`, { method: "PATCH", body: JSON.stringify(data) });
 }
 

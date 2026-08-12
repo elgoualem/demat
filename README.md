@@ -67,6 +67,24 @@ Interface : `/admin` côté frontend (lien "Admin" dans la nav, visible uniqueme
 4. Variables à définir : `JWT_SECRET`.
 5. Build command : `npm run build && npx prisma migrate deploy` — start command : `npm start`.
 
+## Connecter un vrai fournisseur
+
+Un `Provider.connectorKey` doit pointer vers un connecteur qui implémente `ProviderConnector` (`src/connectors/types.ts`). Deux façons de brancher un vrai fournisseur, sans jamais toucher à l'orchestrateur :
+
+**1. Connecteur REST générique (`connectorKey: "generic-rest"`)** — pas de déploiement nécessaire, tout se configure depuis la fiche du fournisseur (`/admin/providers/:id`, section "Connexion API") : URL de base, clé API (secret write-only, jamais renvoyée en clair par l'API — seul un booléen `apiKeySet` l'indique), en-tête et préfixe d'authentification, chemin de création de commande, et le mapping des champs de réponse. Contrat par défaut attendu côté fournisseur :
+
+```
+POST {apiBaseUrl}{apiOrderPath}
+Authorization: {apiAuthPrefix}{apiKey}
+{ "external_reference": "...", "idempotency_key": "...", "amount": 1500, "currency": "EUR" }
+
+→ 200 { "status": "confirmed", "provider_order_id": "..." }   (ou "reason" si échec)
+```
+
+Si le JSON du fournisseur utilise d'autres noms de champs (ex. `state` au lieu de `status`, `"ok"` au lieu de `"confirmed"`), ça se configure sans code via `apiStatusField` / `apiOrderIdField` / `apiConfirmedValue`.
+
+**2. Connecteur dédié codé** — si l'API du fournisseur a une authentification propriétaire, des webhooks de confirmation asynchrone, ou une forme trop différente du contrat ci-dessus : nouvelle classe dans `src/connectors/` qui implémente `ProviderConnector`, enregistrée dans `src/connectors/registry.ts` sous une nouvelle clé. L'orchestrateur ne fait aucune différence entre les deux approches.
+
 ## Ce qui manque volontairement (hors MVP)
 
 Parcours hybride/externe, split payment, abonnements récurrents, rôles fins, app mobile — voir la roadmap v1/v2 définie en amont.
