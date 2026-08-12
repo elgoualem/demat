@@ -42,9 +42,7 @@ export default function HomePage() {
       <section className="mb-14">
         <p className="mb-3 text-xs font-semibold tracking-widest text-brand-600 uppercase">Place de marché vérifiée</p>
         <h1 className="font-serif text-5xl leading-[1.1] text-stone-900">
-          Comparez, choisissez,
-          <br />
-          <span className="italic text-brand-600">on garantit la livraison.</span>
+          Rechargez en <span className="italic text-brand-600">3 étapes.</span>
         </h1>
         <p className="mt-5 max-w-xl text-lg text-stone-500">
           Des fournisseurs vérifiés proposent leur prix sur chaque service. Téléphonie, argent, voyage — un seul
