@@ -1,7 +1,7 @@
 import "dotenv/config";
 import cors from "cors";
 import express, { NextFunction, Request, Response } from "express";
-import servicesRouter from "./routes/services";
+import productsRouter from "./routes/products";
 import ordersRouter from "./routes/orders";
 import authRouter from "./routes/auth";
 import organizationsRouter from "./routes/organizations";
@@ -13,7 +13,7 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/auth", authRouter);
-app.use("/services", servicesRouter);
+app.use("/products", productsRouter);
 app.use("/orders", ordersRouter);
 app.use("/organizations", organizationsRouter);
 app.use("/admin", adminRouter);

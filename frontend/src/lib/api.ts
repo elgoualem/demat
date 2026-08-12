@@ -1,20 +1,35 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export interface Provider {
+  id?: string;
   name: string;
   slug: string;
-  status: string;
+  status?: string;
 }
 
-export interface Service {
+export interface Product {
   id: string;
   name: string;
   slug: string;
   category: string;
   description: string;
-  price: number;
   currency: string;
+  fromPrice: number | null;
+  offerCount: number;
+}
+
+export interface Offer {
+  id: string;
+  price: number;
+  rating: number | null;
+  salesCount: number;
+  deliverySeconds: number | null;
+  kycVerified: boolean;
   provider: Provider;
+}
+
+export interface ProductDetail extends Omit<Product, "fromPrice" | "offerCount"> {
+  offers: Offer[];
 }
 
 export interface OrderEvent {
@@ -43,6 +58,8 @@ export interface Order {
   events?: OrderEvent[];
   invoice?: Invoice | null;
   user?: AuthUser;
+  product?: { name: string; slug: string; category: string };
+  provider?: { name: string; slug: string };
 }
 
 export interface AuthUser {
@@ -96,8 +113,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-export function getServices(): Promise<Service[]> {
-  return request<Service[]>("/services");
+export function getProducts(): Promise<Product[]> {
+  return request<Product[]>("/products");
+}
+
+export function getProduct(slug: string): Promise<ProductDetail> {
+  return request<ProductDetail>(`/products/${slug}`);
 }
 
 export function register(email: string, name: string): Promise<AuthResponse> {
@@ -114,11 +135,11 @@ export function login(email: string): Promise<AuthResponse> {
   });
 }
 
-export function createOrder(token: string, serviceId: string, organizationId?: string | null): Promise<Order> {
+export function createOrder(token: string, offerId: string, organizationId?: string | null): Promise<Order> {
   return request<Order>("/orders", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ serviceId, organizationId: organizationId || undefined }),
+    body: JSON.stringify({ offerId, organizationId: organizationId || undefined }),
   });
 }
 

@@ -1,5 +1,7 @@
 // Schéma MVP : catalogue, comptes, commandes, factures, event log.
-// Un fournisseur = une ligne Provider. Un service = une offre normalisée liée à un Provider.
+// Product = l'item générique du catalogue (ce que le client cherche, ex. "Recharge 20Go").
+// Offer = la cotation d'un Provider donné sur un Product donné (son prix, sa note, ses ventes) —
+// plusieurs fournisseurs peuvent coter le même Product, le client choisit parmi les offres.
 // Chaque commande génère des Event (traçabilité de bout en bout, quel que soit le parcours).
 
 generator client {
@@ -98,25 +100,44 @@ model Provider {
   commissionType  CommissionType @default(PERCENTAGE)
   commissionValue Int            @default(500) // 5,00 % par défaut
   createdAt DateTime       @default(now())
-  services  Service[]
+  offers    Offer[]
   orders    Order[]
 }
 
-model Service {
+model Product {
   id              String          @id @default(uuid())
-  provider        Provider        @relation(fields: [providerId], references: [id])
-  providerId      String
   name            String
   slug            String          @unique
   category        String
   description     String
-  price           Int             // en centimes
   currency        String          @default("EUR")
   consumptionType ConsumptionType @default(UNIT)
   journeyType     JourneyType     @default(NATIVE)
   isActive        Boolean         @default(true)
   createdAt       DateTime        @default(now())
+  offers          Offer[]
   orders          Order[]
+}
+
+// Cotation d'un Provider sur un Product : c'est cette ligne, pas le Product,
+// qui porte le prix — plusieurs fournisseurs peuvent coter le même produit,
+// le client compare et choisit (voir GET /products/:slug).
+model Offer {
+  id              String   @id @default(uuid())
+  product         Product  @relation(fields: [productId], references: [id])
+  productId       String
+  provider        Provider @relation(fields: [providerId], references: [id])
+  providerId      String
+  price           Int      // en centimes
+  rating          Float?
+  salesCount      Int      @default(0)
+  deliverySeconds Int?
+  kycVerified     Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  orders          Order[]
+
+  @@unique([productId, providerId])
 }
 
 model Order {
@@ -127,8 +148,12 @@ model Order {
   // de l'entreprise (B2B, facturation consolidée) plutôt qu'à titre personnel (B2C).
   organization       Organization? @relation(fields: [organizationId], references: [id])
   organizationId     String?
-  service            Service       @relation(fields: [serviceId], references: [id])
-  serviceId          String
+  product            Product       @relation(fields: [productId], references: [id])
+  productId          String
+  // Offre choisie par le client (fige le fournisseur ET le prix cotés au moment
+  // de la commande, même si l'offre change ou est désactivée par la suite).
+  offer              Offer         @relation(fields: [offerId], references: [id])
+  offerId            String
   provider           Provider      @relation(fields: [providerId], references: [id])
   providerId         String
   status             OrderStatus   @default(PENDING)

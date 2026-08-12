@@ -179,7 +179,7 @@ export default function OrganizationPage() {
                   className="flex items-center justify-between rounded-lg px-2 py-2 text-sm transition hover:bg-stone-50"
                 >
                   <span className="text-stone-700">
-                    {order.id.slice(0, 8)} — {order.user?.email}
+                    {order.product?.name ?? order.id.slice(0, 8)} — {order.user?.email}
                   </span>
                   <span className="flex items-center gap-3">
                     <span className="text-stone-500">{formatPrice(order.amount, order.currency)}</span>

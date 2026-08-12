@@ -13,13 +13,13 @@ const RETRY_BASE_DELAY_MS = 300;
 export async function submitOrderToProvider(orderId: string) {
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
-    include: { provider: true, service: true },
+    include: { provider: true, product: true },
   });
 
   const connector = getConnector(order.provider.connectorKey);
 
   const req: CreateOrderRequest = {
-    serviceExternalId: order.service.slug,
+    serviceExternalId: order.product.slug,
     idempotencyKey: order.idempotencyKey, // même clé à chaque retry -> pas de double création côté fournisseur
     amount: order.amount,
     currency: order.currency,

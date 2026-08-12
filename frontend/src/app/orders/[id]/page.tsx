@@ -56,8 +56,11 @@ export default function OrderPage() {
     <div className="mx-auto max-w-xl">
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="font-serif text-3xl text-stone-900">Commande {order.id.slice(0, 8)}</h1>
-          <p className="mt-1 text-stone-500">{formatPrice(order.amount, order.currency)}</p>
+          <h1 className="font-serif text-3xl text-stone-900">{order.product?.name ?? `Commande ${order.id.slice(0, 8)}`}</h1>
+          <p className="mt-1 text-stone-500">
+            {formatPrice(order.amount, order.currency)}
+            {order.provider && <span className="text-stone-400"> · {order.provider.name}</span>}
+          </p>
         </div>
         <span className={`rounded-full px-3 py-1 text-sm font-medium ${status.className}`}>{status.label}</span>
       </div>

@@ -12,13 +12,14 @@ const router = Router();
 // plateforme) ne doit jamais y apparaître, d'où l'omit systématique.
 const OMIT_PLATFORM_FEE = { platformFee: true } as const;
 
-// POST /orders { serviceId, organizationId? } — parcours natif : la plateforme crée la commande,
-// appelle le fournisseur via l'orchestrateur, et renvoie le statut final.
+// POST /orders { offerId, organizationId? } — parcours natif : le client a choisi une offre
+// (un fournisseur, un prix) sur la page produit ; la plateforme crée la commande au prix figé
+// de cette offre, appelle le fournisseur via l'orchestrateur, et renvoie le statut final.
 // organizationId rattache la commande à une entreprise (B2B, facturation consolidée) ;
 // l'utilisateur doit en être membre.
 router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
-  const { serviceId, organizationId } = req.body;
-  if (!serviceId) return res.status(400).json({ error: "serviceId_required" });
+  const { offerId, organizationId } = req.body;
+  if (!offerId) return res.status(400).json({ error: "offerId_required" });
 
   if (organizationId) {
     const membership = await prisma.membership.findUnique({
@@ -27,19 +28,23 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
     if (!membership) return res.status(403).json({ error: "not_a_member" });
   }
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId }, include: { provider: true } });
-  if (!service || !service.isActive) return res.status(404).json({ error: "service_not_found" });
+  const offer = await prisma.offer.findUnique({
+    where: { id: offerId },
+    include: { product: true, provider: true },
+  });
+  if (!offer || !offer.isActive || !offer.product.isActive) return res.status(404).json({ error: "offer_not_found" });
 
   const order = await prisma.order.create({
     data: {
       userId: req.userId!,
       organizationId: organizationId || null,
-      serviceId: service.id,
-      providerId: service.providerId,
-      amount: service.price,
-      platformFee: calculatePlatformFee(service.provider, service.price),
-      currency: service.currency,
-      journeyType: service.journeyType,
+      productId: offer.productId,
+      offerId: offer.id,
+      providerId: offer.providerId,
+      amount: offer.price,
+      platformFee: calculatePlatformFee(offer.provider, offer.price),
+      currency: offer.product.currency,
+      journeyType: offer.product.journeyType,
       idempotencyKey: uuidv4(),
     },
     omit: OMIT_PLATFORM_FEE,
@@ -47,7 +52,7 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
 
   await prisma.event.create({ data: { orderId: order.id, type: "ORDER_CREATED" } });
 
-  if (service.journeyType === "NATIVE") {
+  if (offer.product.journeyType === "NATIVE") {
     const result = await submitOrderToProvider(order.id);
     const updated = await prisma.order.findUnique({ where: { id: order.id }, omit: OMIT_PLATFORM_FEE });
     return res.status(result.status === "CONFIRMED" ? 201 : 502).json(updated);
@@ -61,7 +66,12 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
 router.get("/:id", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
   const order = await prisma.order.findUnique({
     where: { id: req.params.id },
-    include: { events: { orderBy: { createdAt: "asc" } }, invoice: true },
+    include: {
+      events: { orderBy: { createdAt: "asc" } },
+      invoice: true,
+      product: { select: { name: true, slug: true, category: true } },
+      provider: { select: { name: true, slug: true } },
+    },
     omit: OMIT_PLATFORM_FEE,
   });
   if (!order) return res.status(404).json({ error: "order_not_found" });
