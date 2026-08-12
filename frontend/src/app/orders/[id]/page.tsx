@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getOrder, Order, ApiError } from "@/lib/api";
+import { getOrder, downloadInvoicePdf, Order, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const STATUS_META: Record<Order["status"], { label: string; className: string }> = {
@@ -24,6 +24,7 @@ export default function OrderPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     if (!token) return;
@@ -46,6 +47,18 @@ export default function OrderPage() {
     fetchOrder();
   }, [token, fetchOrder, router]);
 
+  async function handleDownloadInvoice() {
+    if (!token || !order?.invoice) return;
+    setDownloading(true);
+    try {
+      await downloadInvoicePdf(token, order.id, `${order.invoice.number}.pdf`);
+    } catch {
+      setError("Téléchargement de la facture impossible.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   if (loading && !order) return <p className="text-stone-500">Chargement de la commande…</p>;
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!order) return null;
@@ -67,9 +80,19 @@ export default function OrderPage() {
 
       {order.invoice && (
         <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-2 font-semibold text-stone-900">Facture</h2>
-          <p className="text-sm text-stone-600">Statut : {order.invoice.status}</p>
-          <p className="text-sm text-stone-600">Émise le : {new Date(order.invoice.issuedAt).toLocaleString("fr-FR")}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-stone-900">Facture {order.invoice.number}</h2>
+              <p className="text-sm text-stone-600">Émise le {new Date(order.invoice.issuedAt).toLocaleDateString("fr-FR")}</p>
+            </div>
+            <button
+              onClick={handleDownloadInvoice}
+              disabled={downloading}
+              className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {downloading ? "…" : "Télécharger (PDF)"}
+            </button>
+          </div>
         </div>
       )}
 

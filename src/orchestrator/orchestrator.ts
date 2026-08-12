@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { getConnector } from "../connectors/registry";
 import { CreateOrderRequest } from "../connectors/types";
+import { getConfiguredVatRate } from "../billing/invoice";
 
 // Couche d'orchestration : route vers le bon connecteur, applique retries + idempotency key,
 // journalise chaque tentative dans Event pour garder une traçabilité de bout en bout
@@ -46,7 +47,7 @@ export async function submitOrderToProvider(orderId: string) {
         data: { orderId, type: "PROVIDER_CONFIRMED", payload: { attempt, providerOrderId: lastResult.providerOrderId } },
       });
       await prisma.invoice.create({
-        data: { orderId, amount: order.amount, currency: order.currency },
+        data: { orderId, amount: order.amount, currency: order.currency, vatRate: getConfiguredVatRate() },
       });
       return { status: "CONFIRMED" as const };
     }

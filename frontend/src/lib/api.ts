@@ -41,7 +41,9 @@ export interface OrderEvent {
 
 export interface Invoice {
   id: string;
+  number: string;
   amount: number;
+  vatRate: number | null;
   currency: string;
   status: string;
   issuedAt: string;
@@ -150,6 +152,25 @@ export function getOrder(token: string, orderId: string): Promise<Order> {
   });
 }
 
+// Le PDF est derrière une route authentifiée (Bearer JWT) : un <a href> classique
+// ne peut pas porter l'en-tête, donc on le récupère en blob puis on déclenche
+// le téléchargement via une URL objet temporaire.
+export async function downloadInvoicePdf(token: string, orderId: string, filename: string): Promise<void> {
+  const res = await fetch(`${API_URL}/orders/${orderId}/invoice.pdf`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new ApiError(res.status, "invoice_download_failed");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function listOrganizations(token: string): Promise<Organization[]> {
   return request<Organization[]>("/organizations", {
     headers: { Authorization: `Bearer ${token}` },
@@ -246,6 +267,7 @@ export interface AdminOrder {
   user: { id: string; email: string; name: string | null };
   product: { id: string; name: string; slug: string };
   provider: { id: string; name: string; slug: string };
+  invoice: { number: string; status: string; issuedAt: string } | null;
 }
 
 export interface AdminUser {

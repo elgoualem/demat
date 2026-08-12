@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/AdminGuard";
-import { getAdminOrders, AdminOrder, ApiError } from "@/lib/api";
+import { getAdminOrders, downloadInvoicePdf, AdminOrder, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, formatDate } from "@/lib/format";
 
@@ -20,6 +20,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -28,6 +29,18 @@ export default function AdminOrdersPage() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur inconnue"))
       .finally(() => setLoading(false));
   }, [token]);
+
+  async function handleDownload(order: AdminOrder) {
+    if (!token || !order.invoice) return;
+    setDownloadingId(order.id);
+    try {
+      await downloadInvoicePdf(token, order.id, `${order.invoice.number}.pdf`);
+    } catch {
+      setError("Téléchargement de la facture impossible.");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   return (
     <AdminGuard>
@@ -54,6 +67,7 @@ export default function AdminOrdersPage() {
                   <th className="p-3 font-medium">Montant</th>
                   <th className="p-3 font-medium">Commission</th>
                   <th className="p-3 font-medium">Statut</th>
+                  <th className="p-3 font-medium">Facture</th>
                 </tr>
               </thead>
               <tbody>
@@ -66,11 +80,24 @@ export default function AdminOrdersPage() {
                     <td className="p-3 text-stone-900">{formatPrice(o.amount, o.currency)}</td>
                     <td className="p-3 text-stone-600">{formatPrice(o.platformFee, o.currency)}</td>
                     <td className="p-3 text-stone-500">{STATUS_LABEL[o.status]}</td>
+                    <td className="p-3">
+                      {o.invoice ? (
+                        <button
+                          onClick={() => handleDownload(o)}
+                          disabled={downloadingId === o.id}
+                          className="text-sm font-medium text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {downloadingId === o.id ? "…" : o.invoice.number}
+                        </button>
+                      ) : (
+                        <span className="text-sm text-stone-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {orders.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-4 text-center text-stone-400">Aucune commande.</td>
+                    <td colSpan={8} className="p-4 text-center text-stone-400">Aucune commande.</td>
                   </tr>
                 )}
               </tbody>

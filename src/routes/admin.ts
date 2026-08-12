@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../db";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
+import { formatInvoiceNumber } from "../billing/invoice";
 
 const router = Router();
 
@@ -292,11 +293,17 @@ router.get("/orders", asyncHandler(async (req, res) => {
       user: { select: { id: true, email: true, name: true } },
       product: { select: { id: true, name: true, slug: true } },
       provider: { select: { id: true, name: true, slug: true } },
+      invoice: { select: { sequenceNumber: true, issuedAt: true, status: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
-  res.json(orders);
+  res.json(
+    orders.map((o) => ({
+      ...o,
+      invoice: o.invoice ? { ...o.invoice, number: formatInvoiceNumber(o.invoice.issuedAt, o.invoice.sequenceNumber) } : null,
+    }))
+  );
 }));
 
 // ---- Comptes / admins ----

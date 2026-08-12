@@ -5,6 +5,8 @@ import { submitOrderToProvider } from "../orchestrator/orchestrator";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { calculatePlatformFee } from "../billing/commission";
+import { formatInvoiceNumber } from "../billing/invoice";
+import { generateInvoicePdf } from "../billing/generateInvoicePdf";
 
 const router = Router();
 
@@ -63,6 +65,20 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
   res.status(202).json(order);
 }));
 
+// Vrai si l'utilisateur peut voir cette commande : son auteur, un membre de
+// l'organisation pour laquelle elle a été passée, ou un admin plateforme.
+async function canAccessOrder(userId: string, order: { userId: string; organizationId: string | null }) {
+  if (order.userId === userId) return true;
+  if (order.organizationId) {
+    const membership = await prisma.membership.findUnique({
+      where: { userId_organizationId: { userId, organizationId: order.organizationId } },
+    });
+    if (membership) return true;
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  return user?.isAdmin === true;
+}
+
 router.get("/:id", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
   const order = await prisma.order.findUnique({
     where: { id: req.params.id },
@@ -75,16 +91,42 @@ router.get("/:id", requireAuth, asyncHandler(async (req: AuthedRequest, res) => 
     omit: OMIT_PLATFORM_FEE,
   });
   if (!order) return res.status(404).json({ error: "order_not_found" });
+  if (!(await canAccessOrder(req.userId!, order))) return res.status(403).json({ error: "forbidden" });
 
-  const isOwner = order.userId === req.userId;
-  const isOrgMember =
-    order.organizationId &&
-    (await prisma.membership.findUnique({
-      where: { userId_organizationId: { userId: req.userId!, organizationId: order.organizationId } },
-    }));
-  if (!isOwner && !isOrgMember) return res.status(403).json({ error: "forbidden" });
+  const response = order.invoice
+    ? { ...order, invoice: { ...order.invoice, number: formatInvoiceNumber(order.invoice.issuedAt, order.invoice.sequenceNumber) } }
+    : order;
+  res.json(response);
+}));
 
-  res.json(order);
+// GET /orders/:id/invoice.pdf — même contrôle d'accès que la commande elle-même.
+router.get("/:id/invoice.pdf", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
+  const order = await prisma.order.findUnique({
+    where: { id: req.params.id },
+    include: {
+      invoice: true,
+      product: { select: { name: true } },
+      provider: { select: { name: true } },
+      user: { select: { email: true, name: true } },
+      organization: { select: { name: true, vatNumber: true } },
+    },
+  });
+  if (!order || !order.invoice) return res.status(404).json({ error: "invoice_not_found" });
+  if (!(await canAccessOrder(req.userId!, order))) return res.status(403).json({ error: "forbidden" });
+
+  const number = formatInvoiceNumber(order.invoice.issuedAt, order.invoice.sequenceNumber);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${number}.pdf"`);
+
+  const doc = generateInvoicePdf({
+    invoice: order.invoice,
+    orderId: order.id,
+    product: order.product,
+    provider: order.provider,
+    buyer: order.user,
+    organization: order.organization,
+  });
+  doc.pipe(res);
 }));
 
 export default router;
