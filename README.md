@@ -44,8 +44,16 @@ Organisations (B2B, Bearer JWT requis) :
 - `DELETE /organizations/:id/members/:userId` (OWNER/ADMIN uniquement, un OWNER ne peut pas être retiré)
 
 Commission plateforme : chaque `Provider` a sa propre politique (`commissionType` : `PERCENTAGE` en points de base, ou `FIXED` en centimes). Elle est calculée à la création de chaque commande (`Order.platformFee`) et **n'est jamais renvoyée par une route accessible aux clients** — exclue explicitement de `POST/GET /orders` et `GET /organizations/:id/orders`.
-- `GET /admin/commissions` (Bearer JWT, réservé à `User.isAdmin = true`) — commission totale, détail par fournisseur, historique des commandes confirmées
-- Pas de self-service pour devenir admin : définir `ADMIN_EMAIL` dans `.env` avant `npm run seed` désigne ce compte comme admin (ou passer `isAdmin: true` manuellement en base)
+
+Admin (Bearer JWT, réservé à `User.isAdmin = true` — toutes les routes `/admin/*` répondent 403 sinon) :
+- `GET /admin/commissions` — commission totale, détail par fournisseur, historique des commandes confirmées
+- `GET/POST/PATCH /admin/providers[/:id]` — lister, créer, modifier (statut, commission, connecteur)
+- `GET/POST/PATCH /admin/products[/:id]` — lister, créer, modifier (le détail `:id` inclut toutes les offres, actives et inactives)
+- `POST/PATCH /admin/offers[/:id]` — créer/modifier une offre (prix, note, ventes, délai, KYC, actif)
+- `GET /admin/orders` — toutes les commandes de la plateforme, tous clients confondus, avec `platformFee` visible
+- `GET/PATCH /admin/users[/:id]` — lister les comptes, promouvoir/révoquer l'accès admin (un admin ne peut pas se révoquer lui-même)
+
+Interface : `/admin` côté frontend (lien "Admin" dans la nav, visible uniquement si `user.isAdmin`). Pas de self-service pour devenir admin : définir `ADMIN_EMAIL` dans `.env` avant `npm run seed` désigne ce compte comme premier admin (ensuite, la gestion des admins se fait depuis `/admin/users`).
 
 ## Déploiement Railway
 
