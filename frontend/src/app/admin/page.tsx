@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
 
 const SECTIONS = [
+  { href: "/admin/analytics", label: "Analytique", description: "Chiffre d'affaires et commission par fournisseur, comparés dans le temps" },
   { href: "/admin/providers", label: "Fournisseurs", description: "Commissions, statut, connecteur" },
   { href: "/admin/products", label: "Produits", description: "Catalogue, offres par fournisseur" },
   { href: "/admin/orders", label: "Commandes", description: "Toutes les commandes, tous clients" },

@@ -263,6 +263,34 @@ export interface CommissionsReport {
   orders: Array<{ id: string; amount: number; platformFee: number; currency: string; createdAt: string; provider: { id: string; name: string } }>;
 }
 
+export interface AnalyticsDailyPoint {
+  date: string;
+  byProvider: Record<string, { amount: number; platformFee: number; orderCount: number }>;
+}
+
+export interface AnalyticsSummary {
+  providerId: string;
+  providerName: string;
+  amount: number;
+  platformFee: number;
+  orderCount: number;
+  confirmedCount: number;
+  failedCount: number;
+  avgOrderValue: number;
+  confirmationRate: number | null;
+}
+
+export interface Analytics {
+  since: string;
+  providers: Array<{ id: string; name: string }>;
+  daily: AnalyticsDailyPoint[];
+  summary: AnalyticsSummary[];
+}
+
+export function getAdminAnalytics(token: string, days: number): Promise<Analytics> {
+  return adminRequest(token, `/admin/analytics?days=${days}`);
+}
+
 function adminRequest<T>(token: string, path: string, options: RequestInit = {}): Promise<T> {
   return request<T>(path, { ...options, headers: { Authorization: `Bearer ${token}`, ...options.headers } });
 }

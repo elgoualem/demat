@@ -49,6 +49,78 @@ router.get("/commissions", asyncHandler(async (req, res) => {
   });
 }));
 
+// GET /admin/analytics?days=30 — chiffre d'affaires (amount) et commission
+// (platformFee) par fournisseur, ventilés par jour, pour comparer plusieurs
+// fournisseurs sur une période — + un diagnostic agrégé par fournisseur
+// (volume, taux de confirmation, panier moyen), tous statuts confondus.
+router.get("/analytics", asyncHandler(async (req, res) => {
+  const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+
+  const [providers, orders] = await Promise.all([
+    prisma.provider.findMany({ select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
+    prisma.order.findMany({
+      where: { createdAt: { gte: since } },
+      select: { providerId: true, status: true, amount: true, platformFee: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  // Série journalière : uniquement les commandes confirmées comptent comme revenu réel.
+  const dailyMap = new Map<string, Map<string, { amount: number; platformFee: number; orderCount: number }>>();
+  for (const o of orders) {
+    if (o.status !== "CONFIRMED") continue;
+    const day = o.createdAt.toISOString().slice(0, 10);
+    if (!dailyMap.has(day)) dailyMap.set(day, new Map());
+    const byProvider = dailyMap.get(day)!;
+    const entry = byProvider.get(o.providerId) ?? { amount: 0, platformFee: 0, orderCount: 0 };
+    entry.amount += o.amount;
+    entry.platformFee += o.platformFee;
+    entry.orderCount += 1;
+    byProvider.set(o.providerId, entry);
+  }
+  const daily = Array.from(dailyMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, byProvider]) => ({ date, byProvider: Object.fromEntries(byProvider) }));
+
+  // Diagnostic : tous statuts confondus, pour voir le taux de confirmation par fournisseur.
+  const summaryMap = new Map<string, { amount: number; platformFee: number; orderCount: number; confirmedCount: number; failedCount: number }>();
+  for (const o of orders) {
+    const entry = summaryMap.get(o.providerId) ?? { amount: 0, platformFee: 0, orderCount: 0, confirmedCount: 0, failedCount: 0 };
+    entry.orderCount += 1;
+    if (o.status === "CONFIRMED") {
+      entry.amount += o.amount;
+      entry.platformFee += o.platformFee;
+      entry.confirmedCount += 1;
+    } else if (o.status === "FAILED") {
+      entry.failedCount += 1;
+    }
+    summaryMap.set(o.providerId, entry);
+  }
+
+  res.json({
+    since: since.toISOString(),
+    providers,
+    daily,
+    summary: providers.map((p) => {
+      const s = summaryMap.get(p.id) ?? { amount: 0, platformFee: 0, orderCount: 0, confirmedCount: 0, failedCount: 0 };
+      return {
+        providerId: p.id,
+        providerName: p.name,
+        amount: s.amount,
+        platformFee: s.platformFee,
+        orderCount: s.orderCount,
+        confirmedCount: s.confirmedCount,
+        failedCount: s.failedCount,
+        avgOrderValue: s.confirmedCount > 0 ? Math.round(s.amount / s.confirmedCount) : 0,
+        confirmationRate: s.orderCount > 0 ? s.confirmedCount / s.orderCount : null,
+      };
+    }),
+  });
+}));
+
 // ---- Fournisseurs ----
 
 router.get("/providers", asyncHandler(async (req, res) => {
