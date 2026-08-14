@@ -16,8 +16,8 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Marketplace MVP",
-  description: "Catalogue et commande de services",
+  title: "Démat — Place de marché vérifiée",
+  description: "Comparez des fournisseurs vérifiés et commandez en toute confiance : téléphonie, argent, voyage.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

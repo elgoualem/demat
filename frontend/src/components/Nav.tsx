@@ -23,10 +23,10 @@ export default function Nav() {
             Catalogue
           </Link>
         </div>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-2 text-sm sm:gap-4">
           {user ? (
             <>
-              <Link href="/organizations" className="font-medium text-stone-700 hover:text-stone-900">
+              <Link href="/organizations" className="hidden font-medium text-stone-700 hover:text-stone-900 sm:inline">
                 Organisations
               </Link>
               {user.isAdmin && (
@@ -34,10 +34,10 @@ export default function Nav() {
                   Admin
                 </Link>
               )}
-              <span className="text-stone-500">{user.email}</span>
+              <span className="hidden text-stone-500 md:inline">{user.email}</span>
               <button
                 onClick={logout}
-                className="rounded-full border border-stone-300 px-3 py-1.5 font-medium text-stone-700 transition hover:bg-stone-100"
+                className="rounded-full border border-stone-300 px-2.5 py-1.5 font-medium text-stone-700 transition hover:bg-stone-100 sm:px-3"
               >
                 Déconnexion
               </button>
