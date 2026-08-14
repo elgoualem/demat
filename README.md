@@ -83,6 +83,21 @@ Authorization: {apiAuthPrefix}{apiKey}
 
 Si le JSON du fournisseur utilise d'autres noms de champs (ex. `state` au lieu de `status`, `"ok"` au lieu de `"confirmed"`), ça se configure sans code via `apiStatusField` / `apiOrderIdField` / `apiConfirmedValue`.
 
+Import automatique du catalogue (produits + prix + image) : bouton "Importer le catalogue" sur la fiche fournisseur, qui appelle `fetchCatalog()` puis crée/met à jour les `Product`/`Offer` correspondants (matching par slug généré à partir du nom). Le prix est toujours resynchronisé ; l'image n'est écrasée que si le produit n'en avait pas déjà une (pour ne pas remplacer une image choisie manuellement en admin). Contrat attendu :
+
+```
+GET {apiBaseUrl}{apiCatalogPath}
+Authorization: {apiAuthPrefix}{apiKey}
+
+→ 200 [
+    { "id": "...", "name": "...", "description": "...", "category": "...",
+      "price": 1500, "currency": "EUR", "image_url": "https://..." },
+    ...
+  ]
+```
+
+Seuls `id`/`name`/`price` sont requis par élément (`description`, `category` et `image_url` sont optionnels) ; toute entrée invalide est silencieusement ignorée plutôt que de faire échouer tout l'import. Les noms de champs de la réponse catalogue ne sont pas configurables (contrairement à la création de commande) — un connecteur dédié est nécessaire si le fournisseur utilise une autre forme.
+
 **2. Connecteur dédié codé** — si l'API du fournisseur a une authentification propriétaire, des webhooks de confirmation asynchrone, ou une forme trop différente du contrat ci-dessus : nouvelle classe dans `src/connectors/` qui implémente `ProviderConnector`, enregistrée dans `src/connectors/registry.ts` sous une nouvelle clé. L'orchestrateur ne fait aucune différence entre les deux approches.
 
 ## Ce qui manque volontairement (hors MVP)

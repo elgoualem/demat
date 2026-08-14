@@ -68,6 +68,11 @@ export default function ProductPage() {
         ← Catalogue
       </Link>
 
+      {product.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- images arbitraires importées d'un fournisseur, domaine non prévisible
+        <img src={product.imageUrl} alt="" className="mb-4 h-56 w-full rounded-2xl object-cover" />
+      )}
+
       <span className={`mb-3 w-fit rounded-full px-2.5 py-1 text-xs font-medium ${meta.badge}`}>
         {meta.emoji} {meta.label}
       </span>

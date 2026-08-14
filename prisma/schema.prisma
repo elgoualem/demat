@@ -115,6 +115,10 @@ model Provider {
   apiStatusField    String  @default("status")
   apiOrderIdField   String  @default("provider_order_id")
   apiConfirmedValue String  @default("confirmed")
+  // GET {apiBaseUrl}{apiCatalogPath} → tableau JSON [{ id, name, description?,
+  // category?, price, currency, image_url? }, ...], utilisé par "Importer le
+  // catalogue" (voir routes/admin.ts) pour créer/mettre à jour Product+Offer.
+  apiCatalogPath    String  @default("/catalog")
 
   createdAt DateTime       @default(now())
   offers    Offer[]
@@ -127,6 +131,10 @@ model Product {
   slug            String          @unique
   category        String
   description     String
+  // Posée manuellement ou par "Importer le catalogue" (jamais écrasée si déjà
+  // définie : un produit peut être vendu par plusieurs fournisseurs, la première
+  // image reçue reste la référence plutôt que de changer selon le fournisseur importé).
+  imageUrl        String?
   currency        String          @default("EUR")
   consumptionType ConsumptionType @default(UNIT)
   journeyType     JourneyType     @default(NATIVE)

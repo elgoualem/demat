@@ -5,6 +5,9 @@
 export interface CatalogOffer {
   externalId: string;
   name: string;
+  description?: string;
+  category?: string;
+  imageUrl?: string;
   price: number; // centimes
   currency: string;
 }

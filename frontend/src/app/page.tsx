@@ -148,23 +148,29 @@ export default function HomePage() {
                 <Link
                   key={product.id}
                   href={`/products/${product.slug}`}
-                  className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                  className="flex flex-col gap-3 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:shadow-md"
                 >
-                  <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${meta.badge}`}>
-                    {meta.emoji} {meta.label}
-                  </span>
-                  <h3 className="font-semibold text-stone-900">{product.name}</h3>
-                  <p className="flex-1 text-sm text-stone-600">{product.description}</p>
-                  <div className="flex items-center justify-between pt-2">
-                    <div>
-                      <p className="text-xs text-stone-400">à partir de</p>
-                      <p className="text-lg font-bold text-stone-900">
-                        {product.fromPrice !== null ? formatPrice(product.fromPrice, product.currency) : "—"}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
-                      {product.offerCount} fournisseur{product.offerCount > 1 ? "s" : ""}
+                  {product.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- images arbitraires importées d'un fournisseur, domaine non prévisible
+                    <img src={product.imageUrl} alt="" className="h-36 w-full object-cover" />
+                  )}
+                  <div className="flex flex-1 flex-col gap-3 p-5 pt-0 first:pt-5">
+                    <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${meta.badge}`}>
+                      {meta.emoji} {meta.label}
                     </span>
+                    <h3 className="font-semibold text-stone-900">{product.name}</h3>
+                    <p className="flex-1 text-sm text-stone-600">{product.description}</p>
+                    <div className="flex items-center justify-between pt-2">
+                      <div>
+                        <p className="text-xs text-stone-400">à partir de</p>
+                        <p className="text-lg font-bold text-stone-900">
+                          {product.fromPrice !== null ? formatPrice(product.fromPrice, product.currency) : "—"}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+                        {product.offerCount} fournisseur{product.offerCount > 1 ? "s" : ""}
+                      </span>
+                    </div>
                   </div>
                 </Link>
               );

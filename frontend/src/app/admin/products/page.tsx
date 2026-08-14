@@ -17,6 +17,7 @@ export default function AdminProductsPage() {
   const [slug, setSlug] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [creating, setCreating] = useState(false);
 
   function load() {
@@ -36,11 +37,12 @@ export default function AdminProductsPage() {
     setCreating(true);
     setError(null);
     try {
-      await createAdminProduct(token, { name, slug, category, description });
+      await createAdminProduct(token, { name, slug, category, description, imageUrl: imageUrl || undefined });
       setName("");
       setSlug("");
       setCategory("");
       setDescription("");
+      setImageUrl("");
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
@@ -165,6 +167,16 @@ export default function AdminProductsPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
+                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium text-stone-700">Image (URL, optionnel)</span>
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://…"
                 className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               />
             </label>

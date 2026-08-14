@@ -28,6 +28,7 @@ interface ProviderConnectorConfig {
   apiStatusField: string;
   apiOrderIdField: string;
   apiConfirmedValue: string;
+  apiCatalogPath: string;
 }
 
 export function getConnector(provider: ProviderConnectorConfig): ProviderConnector {
@@ -45,6 +46,7 @@ export function getConnector(provider: ProviderConnectorConfig): ProviderConnect
       apiStatusField: provider.apiStatusField,
       apiOrderIdField: provider.apiOrderIdField,
       apiConfirmedValue: provider.apiConfirmedValue,
+      apiCatalogPath: provider.apiCatalogPath,
     });
   }
 
