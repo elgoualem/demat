@@ -46,6 +46,11 @@ export default function HomePage() {
     document.getElementById("catalogue")?.scrollIntoView({ behavior: "smooth" });
   }
 
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    if (value) document.getElementById("catalogue")?.scrollIntoView({ behavior: "smooth" });
+  }
+
   return (
     <div>
       {/* Hero */}
@@ -58,7 +63,26 @@ export default function HomePage() {
           Des fournisseurs vérifiés proposent leur prix sur chaque service. Téléphonie, argent, voyage — un seul
           endroit pour comparer et souscrire, en toute confiance.
         </p>
-        <div className="mt-7 flex flex-wrap gap-3">
+
+        <div className="relative mt-7 max-w-xl">
+          <svg
+            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Rechercher un produit… (ex : forfait mobile, transfert d'argent)"
+            className="w-full rounded-xl border border-stone-200 bg-white py-3.5 pl-12 pr-4 text-stone-900 shadow-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+          />
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3">
           <a
             href="#catalogue"
             className="rounded-full bg-brand-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-brand-700"
@@ -190,24 +214,6 @@ export default function HomePage() {
               ← Voir tout le catalogue
             </button>
           )}
-        </div>
-
-        <div className="relative mb-6">
-          <svg
-            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
-          </svg>
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un produit…"
-            className="w-full rounded-xl border border-stone-200 bg-white py-3 pl-12 pr-4 text-stone-900 shadow-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
         </div>
 
         {categories.length > 0 && (
