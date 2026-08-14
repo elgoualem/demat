@@ -27,6 +27,7 @@ export interface GenericConnectorConfig {
   apiStatusField: string;
   apiOrderIdField: string;
   apiConfirmedValue: string;
+  apiCatalogPath: string;
 }
 
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -117,9 +118,37 @@ export class GenericRestConnector implements ProviderConnector {
     }
   }
 
+  // Contrat attendu : GET {apiBaseUrl}{apiCatalogPath} → tableau JSON
+  // [{ id, name, description?, category?, price, currency, image_url? }, ...].
+  // Utilisé par POST /admin/providers/:id/import-catalog (jamais appelé par
+  // l'orchestrateur de commande) — une réponse inattendue donne juste 0 résultat
+  // plutôt que de faire planter l'import.
   async fetchCatalog(): Promise<CatalogOffer[]> {
-    // Non utilisé par l'orchestrateur aujourd'hui (le catalogue est géré côté
-    // plateforme via Product/Offer) — laissé vide plutôt que de deviner une forme.
-    return [];
+    try {
+      const { ok, json } = await this.request("GET", this.config.apiCatalogPath);
+      if (!ok || !Array.isArray(json)) return [];
+
+      const offers: CatalogOffer[] = [];
+      for (const raw of json) {
+        if (!raw || typeof raw !== "object") continue;
+        const item = raw as Record<string, unknown>;
+        const externalId = item.id ?? item.external_id;
+        const price = Number(item.price);
+        if (typeof item.name !== "string" || !item.name || !externalId || !Number.isFinite(price) || price < 0) continue;
+
+        offers.push({
+          externalId: String(externalId),
+          name: item.name,
+          description: typeof item.description === "string" ? item.description : undefined,
+          category: typeof item.category === "string" ? item.category : undefined,
+          imageUrl: typeof item.image_url === "string" ? item.image_url : undefined,
+          price,
+          currency: typeof item.currency === "string" ? item.currency : "EUR",
+        });
+      }
+      return offers;
+    } catch {
+      return [];
+    }
   }
 }

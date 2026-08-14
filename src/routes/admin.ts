@@ -3,6 +3,8 @@ import { prisma } from "../db";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { formatInvoiceNumber } from "../billing/invoice";
+import { getConnector } from "../connectors/registry";
+import { slugify } from "../utils/slugify";
 
 const router = Router();
 
@@ -161,7 +163,7 @@ router.post("/providers", asyncHandler(async (req, res) => {
   const {
     name, slug, connectorKey, commissionType, commissionValue,
     apiBaseUrl, apiKey, apiAuthHeader, apiAuthPrefix, apiOrderPath,
-    apiStatusField, apiOrderIdField, apiConfirmedValue,
+    apiStatusField, apiOrderIdField, apiConfirmedValue, apiCatalogPath,
   } = req.body;
   if (!name || !slug || !connectorKey) return res.status(400).json({ error: "name_slug_connectorKey_required" });
 
@@ -180,6 +182,7 @@ router.post("/providers", asyncHandler(async (req, res) => {
       ...(apiStatusField !== undefined && { apiStatusField }),
       ...(apiOrderIdField !== undefined && { apiOrderIdField }),
       ...(apiConfirmedValue !== undefined && { apiConfirmedValue }),
+      ...(apiCatalogPath !== undefined && { apiCatalogPath }),
     },
   });
   res.status(201).json(maskProviderSecret(provider));
@@ -189,7 +192,7 @@ router.patch("/providers/:id", asyncHandler(async (req, res) => {
   const {
     name, status, connectorKey, commissionType, commissionValue,
     apiBaseUrl, apiKey, apiAuthHeader, apiAuthPrefix, apiOrderPath,
-    apiStatusField, apiOrderIdField, apiConfirmedValue,
+    apiStatusField, apiOrderIdField, apiConfirmedValue, apiCatalogPath,
   } = req.body;
   const provider = await prisma.provider.update({
     where: { id: req.params.id },
@@ -209,6 +212,7 @@ router.patch("/providers/:id", asyncHandler(async (req, res) => {
       ...(apiStatusField !== undefined && { apiStatusField }),
       ...(apiOrderIdField !== undefined && { apiOrderIdField }),
       ...(apiConfirmedValue !== undefined && { apiConfirmedValue }),
+      ...(apiCatalogPath !== undefined && { apiCatalogPath }),
     },
   });
   res.json(maskProviderSecret(provider));
@@ -255,6 +259,54 @@ router.get("/providers/:id", asyncHandler(async (req, res) => {
   res.json({ provider: maskProviderSecret(provider), offers, summary, orders });
 }));
 
+// POST /admin/providers/:id/import-catalog — appelle connector.fetchCatalog()
+// et upsert Product (par slug généré du nom) + Offer (productId+providerId,
+// déjà unique en base) pour chaque item. Un produit déjà doté d'une image
+// n'est jamais réécrasé (voir schema.prisma) — évite qu'un second fournisseur
+// importé change la photo d'un produit déjà illustré.
+router.post("/providers/:id/import-catalog", asyncHandler(async (req, res) => {
+  const provider = await prisma.provider.findUnique({ where: { id: req.params.id } });
+  if (!provider) return res.status(404).json({ error: "provider_not_found" });
+
+  let items;
+  try {
+    items = await getConnector(provider).fetchCatalog();
+  } catch (err) {
+    return res.status(502).json({ error: "connector_error", message: err instanceof Error ? err.message : String(err) });
+  }
+
+  const results = [];
+  for (const item of items) {
+    const slug = slugify(item.name);
+    if (!slug) continue;
+
+    const product = await prisma.product.upsert({
+      where: { slug },
+      update: {},
+      create: {
+        name: item.name,
+        slug,
+        category: item.category || "autre",
+        description: item.description || item.name,
+        currency: item.currency,
+        imageUrl: item.imageUrl,
+      },
+    });
+    if (item.imageUrl && !product.imageUrl) {
+      await prisma.product.update({ where: { id: product.id }, data: { imageUrl: item.imageUrl } });
+    }
+
+    const offer = await prisma.offer.upsert({
+      where: { productId_providerId: { productId: product.id, providerId: provider.id } },
+      update: { price: item.price },
+      create: { productId: product.id, providerId: provider.id, price: item.price },
+    });
+    results.push({ productName: product.name, productSlug: product.slug, price: offer.price });
+  }
+
+  res.json({ imported: results.length, items: results });
+}));
+
 // ---- Produits ----
 
 router.get("/products", asyncHandler(async (req, res) => {
@@ -266,7 +318,7 @@ router.get("/products", asyncHandler(async (req, res) => {
 }));
 
 router.post("/products", asyncHandler(async (req, res) => {
-  const { name, slug, category, description, consumptionType, journeyType, currency, isActive } = req.body;
+  const { name, slug, category, description, consumptionType, journeyType, currency, isActive, imageUrl } = req.body;
   if (!name || !slug || !category || !description) {
     return res.status(400).json({ error: "name_slug_category_description_required" });
   }
@@ -281,6 +333,7 @@ router.post("/products", asyncHandler(async (req, res) => {
       journeyType: journeyType || "NATIVE",
       currency: currency || "EUR",
       isActive: isActive ?? true,
+      ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
     },
   });
   res.status(201).json(product);
@@ -301,7 +354,7 @@ router.get("/products/:id", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/products/:id", asyncHandler(async (req, res) => {
-  const { name, category, description, isActive, journeyType, consumptionType, currency } = req.body;
+  const { name, category, description, isActive, journeyType, consumptionType, currency, imageUrl } = req.body;
   const product = await prisma.product.update({
     where: { id: req.params.id },
     data: {
@@ -312,6 +365,7 @@ router.patch("/products/:id", asyncHandler(async (req, res) => {
       ...(journeyType !== undefined && { journeyType }),
       ...(consumptionType !== undefined && { consumptionType }),
       ...(currency !== undefined && { currency }),
+      ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
     },
   });
   res.json(product);

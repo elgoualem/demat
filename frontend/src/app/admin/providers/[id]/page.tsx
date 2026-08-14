@@ -4,7 +4,16 @@ import { useEffect, useState, useCallback, FormEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import AdminGuard from "@/components/AdminGuard";
-import { getAdminProviderDetail, updateAdminProvider, ProviderDetail, AdminProvider, AdminProviderWrite, ApiError } from "@/lib/api";
+import {
+  getAdminProviderDetail,
+  updateAdminProvider,
+  importProviderCatalog,
+  ProviderDetail,
+  AdminProvider,
+  AdminProviderWrite,
+  CatalogImportResult,
+  ApiError,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, formatDate } from "@/lib/format";
 
@@ -34,7 +43,11 @@ export default function AdminProviderDetailPage() {
   const [apiStatusField, setApiStatusField] = useState("status");
   const [apiOrderIdField, setApiOrderIdField] = useState("provider_order_id");
   const [apiConfirmedValue, setApiConfirmedValue] = useState("confirmed");
+  const [apiCatalogPath, setApiCatalogPath] = useState("/catalog");
   const [savingApiConfig, setSavingApiConfig] = useState(false);
+
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<CatalogImportResult | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -49,6 +62,7 @@ export default function AdminProviderDetailPage() {
       setApiStatusField(result.provider.apiStatusField);
       setApiOrderIdField(result.provider.apiOrderIdField);
       setApiConfirmedValue(result.provider.apiConfirmedValue);
+      setApiCatalogPath(result.provider.apiCatalogPath);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
@@ -75,6 +89,7 @@ export default function AdminProviderDetailPage() {
         apiStatusField,
         apiOrderIdField,
         apiConfirmedValue,
+        apiCatalogPath,
         ...(apiKey && { apiKey }),
       });
       setData((prev) => (prev ? { ...prev, provider: { ...prev.provider, ...updated } } : prev));
@@ -83,6 +98,22 @@ export default function AdminProviderDetailPage() {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
     } finally {
       setSavingApiConfig(false);
+    }
+  }
+
+  async function handleImportCatalog() {
+    if (!token || !data) return;
+    setImporting(true);
+    setError(null);
+    setImportResult(null);
+    try {
+      const result = await importProviderCatalog(token, data.provider.id);
+      setImportResult(result);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur inconnue");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -278,6 +309,16 @@ export default function AdminProviderDetailPage() {
                     className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   />
                 </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Chemin du catalogue</span>
+                  <input
+                    type="text"
+                    value={apiCatalogPath}
+                    onChange={(e) => setApiCatalogPath(e.target.value)}
+                    placeholder="/catalog"
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                </label>
               </div>
               <button
                 type="submit"
@@ -287,6 +328,37 @@ export default function AdminProviderDetailPage() {
                 {savingApiConfig ? "Enregistrement…" : "Enregistrer la config API"}
               </button>
             </form>
+
+            <h2 className="mb-3 font-semibold text-stone-900">Importer le catalogue</h2>
+            <div className="mb-8 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+              <p className="mb-4 text-sm text-stone-500">
+                Récupère la liste des produits via <code>GET {apiBaseUrl || "{apiBaseUrl}"}{apiCatalogPath}</code> et
+                crée ou met à jour les produits et offres correspondants. Les produits déjà existants (même slug)
+                voient leur prix mis à jour ; leur image n&apos;est remplacée que si elle n&apos;était pas déjà définie.
+              </p>
+              <button
+                type="button"
+                onClick={handleImportCatalog}
+                disabled={importing}
+                className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {importing ? "Import en cours…" : "Importer le catalogue"}
+              </button>
+              {importResult && (
+                <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-100">
+                  <p className="font-medium">{importResult.imported} produit{importResult.imported > 1 ? "s" : ""} importé{importResult.imported > 1 ? "s" : ""} / mis à jour.</p>
+                  {importResult.items.length > 0 && (
+                    <ul className="mt-2 list-inside list-disc space-y-0.5">
+                      {importResult.items.map((item) => (
+                        <li key={item.productSlug}>
+                          {item.productName} — {formatPrice(item.price, "EUR")}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
           </>
         )}
 

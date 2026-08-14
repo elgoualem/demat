@@ -13,6 +13,7 @@ export interface Product {
   slug: string;
   category: string;
   description: string;
+  imageUrl: string | null;
   currency: string;
   fromPrice: number | null;
   offerCount: number;
@@ -234,6 +235,7 @@ export interface AdminProvider {
   apiStatusField: string;
   apiOrderIdField: string;
   apiConfirmedValue: string;
+  apiCatalogPath: string;
   createdAt: string;
   _count: { offers: number };
 }
@@ -253,6 +255,7 @@ export interface AdminProviderWrite {
   apiStatusField?: string;
   apiOrderIdField?: string;
   apiConfirmedValue?: string;
+  apiCatalogPath?: string;
 }
 
 export interface AdminProduct {
@@ -261,6 +264,7 @@ export interface AdminProduct {
   slug: string;
   category: string;
   description: string;
+  imageUrl: string | null;
   currency: string;
   consumptionType: "UNIT" | "SUBSCRIPTION" | "USAGE";
   journeyType: "NATIVE" | "HYBRID" | "EXTERNAL";
@@ -390,6 +394,15 @@ export function getAdminProviderDetail(token: string, id: string): Promise<Provi
   return adminRequest(token, `/admin/providers/${id}`);
 }
 
+export interface CatalogImportResult {
+  imported: number;
+  items: Array<{ productName: string; productSlug: string; price: number }>;
+}
+
+export function importProviderCatalog(token: string, id: string): Promise<CatalogImportResult> {
+  return adminRequest(token, `/admin/providers/${id}/import-catalog`, { method: "POST" });
+}
+
 export function createAdminProvider(token: string, data: AdminProviderWrite): Promise<AdminProvider> {
   return adminRequest(token, "/admin/providers", { method: "POST", body: JSON.stringify(data) });
 }
@@ -408,7 +421,7 @@ export function getAdminProduct(token: string, id: string): Promise<AdminProduct
 
 export function createAdminProduct(
   token: string,
-  data: { name: string; slug: string; category: string; description: string; consumptionType?: string; journeyType?: string; currency?: string }
+  data: { name: string; slug: string; category: string; description: string; consumptionType?: string; journeyType?: string; currency?: string; imageUrl?: string }
 ): Promise<AdminProduct> {
   return adminRequest(token, "/admin/products", { method: "POST", body: JSON.stringify(data) });
 }
