@@ -139,7 +139,7 @@ export default function HomePage() {
       )}
 
       {/* Comment ça marche */}
-      <section className="mb-14">
+      <section id="comment-ca-marche" className="mb-14 scroll-mt-24">
         <h2 className="mb-2 font-serif text-3xl text-stone-900">Comment ça marche</h2>
         <p className="mb-8 max-w-xl text-stone-500">De la sélection à la réception, trois étapes simples et suivies de bout en bout.</p>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -182,7 +182,7 @@ export default function HomePage() {
 
       {/* Catégories */}
       {categories.length > 0 && (
-        <section className="mb-14">
+        <section id="categories" className="mb-14 scroll-mt-24">
           <h2 className="mb-6 font-serif text-3xl text-stone-900">Parcourir par catégorie</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {categories.map((category) => {
@@ -206,7 +206,7 @@ export default function HomePage() {
       )}
 
       {/* Catalogue */}
-      <section id="catalogue">
+      <section id="catalogue" className="scroll-mt-24">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-serif text-3xl text-stone-900">Catalogue</h2>
           {activeCategory && (

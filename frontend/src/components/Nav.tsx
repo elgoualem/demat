@@ -12,6 +12,17 @@ export default function Nav() {
         <Link href="/" className="font-serif text-2xl tracking-tight text-stone-900">
           Démat
         </Link>
+        <div className="hidden items-center gap-6 text-sm font-medium text-stone-600 md:flex">
+          <Link href="/#categories" className="hover:text-stone-900">
+            Catégories
+          </Link>
+          <Link href="/#comment-ca-marche" className="hover:text-stone-900">
+            Comment ça marche
+          </Link>
+          <Link href="/#catalogue" className="hover:text-stone-900">
+            Catalogue
+          </Link>
+        </div>
         <div className="flex items-center gap-4 text-sm">
           {user ? (
             <>
