@@ -514,6 +514,10 @@ export function getAdminOrders(token: string): Promise<AdminOrder[]> {
   return adminRequest(token, "/admin/orders");
 }
 
+export function resolveAdminOrder(token: string, id: string, status: "CONFIRMED" | "FAILED"): Promise<AdminOrder> {
+  return adminRequest(token, `/admin/orders/${id}/resolve`, { method: "PATCH", body: JSON.stringify({ status }) });
+}
+
 export function getAdminUsers(token: string): Promise<AdminUser[]> {
   return adminRequest(token, "/admin/users");
 }
