@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/AdminGuard";
-import { getAdminOrders, downloadInvoicePdf, AdminOrder, ApiError } from "@/lib/api";
+import { getAdminOrders, downloadInvoicePdf, resolveAdminOrder, AdminOrder, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, formatDate } from "@/lib/format";
 import { ORDER_STATUS_LABEL as STATUS_LABEL } from "@/lib/orderStatus";
@@ -14,6 +14,8 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -32,6 +34,21 @@ export default function AdminOrdersPage() {
       setError("Téléchargement de la facture impossible.");
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function handleResolve(order: AdminOrder, status: "CONFIRMED" | "FAILED") {
+    if (!token) return;
+    setResolvingId(order.id);
+    setError(null);
+    try {
+      const updated = await resolveAdminOrder(token, order.id, status);
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
+      setConfirmingId(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Résolution manuelle impossible.");
+    } finally {
+      setResolvingId(null);
     }
   }
 
@@ -61,6 +78,7 @@ export default function AdminOrdersPage() {
                   <th className="p-3 font-medium">Commission</th>
                   <th className="p-3 font-medium">Statut</th>
                   <th className="p-3 font-medium">Facture</th>
+                  <th className="p-3 font-medium">Intervention manuelle</th>
                 </tr>
               </thead>
               <tbody>
@@ -86,11 +104,48 @@ export default function AdminOrdersPage() {
                         <span className="text-sm text-stone-400">—</span>
                       )}
                     </td>
+                    <td className="p-3">
+                      {o.status !== "PENDING" ? (
+                        <span className="text-sm text-stone-400">—</span>
+                      ) : confirmingId === o.id ? (
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          <span className="text-xs text-stone-500">Confirmer ?</span>
+                          <button
+                            onClick={() => handleResolve(o, "CONFIRMED")}
+                            disabled={resolvingId === o.id}
+                            className="text-sm font-medium text-emerald-600 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Réussie
+                          </button>
+                          <button
+                            onClick={() => handleResolve(o, "FAILED")}
+                            disabled={resolvingId === o.id}
+                            className="text-sm font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Échec
+                          </button>
+                          <button
+                            onClick={() => setConfirmingId(null)}
+                            disabled={resolvingId === o.id}
+                            className="text-sm text-stone-400 hover:text-stone-600"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmingId(o.id)}
+                          className="text-sm font-medium text-stone-700 underline decoration-dotted hover:text-stone-900"
+                        >
+                          Résoudre…
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {orders.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-4 text-center text-stone-400">Aucune commande.</td>
+                    <td colSpan={9} className="p-4 text-center text-stone-400">Aucune commande.</td>
                   </tr>
                 )}
               </tbody>

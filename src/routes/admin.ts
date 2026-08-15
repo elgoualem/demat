@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../db";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
-import { formatInvoiceNumber } from "../billing/invoice";
+import { formatInvoiceNumber, getConfiguredVatRate } from "../billing/invoice";
 import { getConnector } from "../connectors/registry";
 import { slugify } from "../utils/slugify";
 
@@ -452,6 +452,55 @@ router.get("/orders", asyncHandler(async (req, res) => {
       invoice: o.invoice ? { ...o.invoice, number: formatInvoiceNumber(o.invoice.issuedAt, o.invoice.sequenceNumber) } : null,
     }))
   );
+}));
+
+// PATCH /admin/orders/:id/resolve { status: "CONFIRMED" | "FAILED" } — intervention manuelle
+// (section 21 de la spec DigiGo) pour les commandes restées PENDING sans réponse fournisseur :
+// aujourd'hui le cas des parcours HYBRID/EXTERNAL, dont le webhook de complétion n'existe pas
+// encore, et de tout appel NATIVE resté bloqué. Sans ce recours, une commande PENDING n'a
+// aucun chemin de sortie ni pour le client ni pour l'opérateur. Réplique exactement la logique
+// de confirmation/échec de l'orchestrateur (src/orchestrator/orchestrator.ts) pour que le
+// résultat soit indiscernable d'une résolution automatique côté client.
+router.patch("/orders/:id/resolve", asyncHandler(async (req: AuthedRequest, res) => {
+  const { status } = req.body as { status?: string };
+  if (status !== "CONFIRMED" && status !== "FAILED") {
+    return res.status(400).json({ error: "invalid_status" });
+  }
+
+  const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!order) return res.status(404).json({ error: "order_not_found" });
+  if (order.status !== "PENDING") return res.status(409).json({ error: "order_not_pending" });
+
+  if (status === "CONFIRMED") {
+    await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED", confirmedAt: new Date() } });
+    await prisma.event.create({
+      data: { orderId: order.id, type: "PROVIDER_CONFIRMED", payload: { manual: true, adminId: req.userId } },
+    });
+    await prisma.invoice.create({
+      data: { orderId: order.id, amount: order.amount, currency: order.currency, vatRate: getConfiguredVatRate() },
+    });
+  } else {
+    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+    await prisma.event.create({
+      data: { orderId: order.id, type: "PROVIDER_FAILED", payload: { manual: true, adminId: req.userId, reason: "manual_resolution" } },
+    });
+  }
+
+  const updated = await prisma.order.findUnique({
+    where: { id: order.id },
+    include: {
+      user: { select: { id: true, email: true, name: true } },
+      product: { select: { id: true, name: true, slug: true } },
+      provider: { select: { id: true, name: true, slug: true } },
+      invoice: { select: { sequenceNumber: true, issuedAt: true, status: true } },
+    },
+  });
+  res.json({
+    ...updated,
+    invoice: updated!.invoice
+      ? { ...updated!.invoice, number: formatInvoiceNumber(updated!.invoice.issuedAt, updated!.invoice.sequenceNumber) }
+      : null,
+  });
 }));
 
 // ---- Comptes / admins ----
