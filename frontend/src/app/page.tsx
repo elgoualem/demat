@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { getProducts, getCategories, Product, CategoryTreeNode, ApiError } from "@/lib/api";
 import { getProductCategoryMeta } from "@/lib/categories";
 
@@ -10,6 +11,15 @@ function formatPrice(cents: number, currency: string) {
 }
 
 export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +36,20 @@ export default function HomePage() {
       .catch(() => setError("Impossible de charger le catalogue."))
       .finally(() => setLoading(false));
   }, []);
+
+  // Synchronise avec ?category=slug et ?q=texte (liens du header et de la
+  // recherche, atteignables depuis n'importe quelle page) : applique le
+  // filtre et défile vers le catalogue dès que ces paramètres sont présents.
+  useEffect(() => {
+    const categoryParam = searchParams.get("category");
+    const queryParam = searchParams.get("q");
+    if (categoryParam) setActiveCategory(categoryParam);
+    if (queryParam) setSearch(queryParam);
+    if (categoryParam || queryParam) {
+      document.getElementById("catalogue")?.scrollIntoView({ behavior: "smooth" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
