@@ -10,7 +10,7 @@ export default function Nav() {
     <nav className="sticky top-0 z-10 border-b border-stone-200 bg-cream/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
         <Link href="/" className="font-serif text-2xl tracking-tight text-stone-900">
-          Démat
+          DigiGo
         </Link>
         <div className="hidden items-center gap-6 text-sm font-medium text-stone-600 md:flex">
           <Link href="/#categories" className="hover:text-stone-900">

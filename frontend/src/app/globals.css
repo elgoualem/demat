@@ -1,16 +1,31 @@
 @import "tailwindcss";
 
+/* Identité DigiGo — voir DigiGo_specification_complete.md section 25.
+   --color-brand-* = "Bleu principal" #2563EB (actions, liens) et son échelle.
+   --color-navy = "Bleu nuit" #0B1630 (fonds profonds, emphase).
+   --color-turquoise / --color-accent = accents secondaire et d'alerte.
+   --color-cream conserve son nom historique (pré-rebrand) mais porte
+   désormais la valeur "fond clair" DigiGo #F7F9FC — renommer la variable
+   demanderait de toucher chaque usage de bg-cream/text-cream dans le code
+   sans changement visuel supplémentaire, donc seule la valeur change ici.
+   --font-serif/--font-sans : mêmes noms de token pour la même raison — ils
+   pointent maintenant vers Plus Jakarta Sans (titres) et Inter (texte),
+   plus aucun des deux n'est réellement une police "serif". */
 @theme {
-  --color-brand-50: #eef1f8;
-  --color-brand-100: #dde3f1;
-  --color-brand-500: #2c4f92;
-  --color-brand-600: #21407c;
-  --color-brand-700: #1a3364;
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
 
-  --color-cream: #f7f4ee;
+  --color-navy: #0b1630;
+  --color-turquoise: #10bfa5;
+  --color-accent: #ffc857;
 
-  --font-serif: var(--font-instrument-serif), Georgia, serif;
-  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-cream: #f7f9fc;
+
+  --font-serif: var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
