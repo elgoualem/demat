@@ -36,6 +36,7 @@ export interface Product {
   fromPrice: number | null;
   offerCount: number;
   popularityScore: number;
+  journeyType: "NATIVE" | "HYBRID" | "EXTERNAL";
 }
 
 export interface CategoryTreeNode {
