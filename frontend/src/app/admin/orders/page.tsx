@@ -8,11 +8,11 @@ import { useAuth } from "@/lib/auth";
 import { formatPrice, formatDate } from "@/lib/format";
 
 const STATUS_LABEL: Record<AdminOrder["status"], string> = {
-  PENDING: "En attente",
-  CONFIRMED: "Confirmée",
-  FAILED: "Échouée",
+  PENDING: "Traitement par le partenaire",
+  CONFIRMED: "Réussie",
+  FAILED: "Échec",
   REFUNDED: "Remboursée",
-  EXPIRED: "Expirée",
+  EXPIRED: "Échec (expirée)",
 };
 
 export default function AdminOrdersPage() {

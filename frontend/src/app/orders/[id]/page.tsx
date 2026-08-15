@@ -6,11 +6,20 @@ import { getOrder, downloadInvoicePdf, Order, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const STATUS_META: Record<Order["status"], { label: string; className: string }> = {
-  PENDING: { label: "En attente", className: "bg-stone-100 text-stone-700" },
-  CONFIRMED: { label: "Confirmée", className: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" },
-  FAILED: { label: "Échouée", className: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-100" },
+  PENDING: { label: "Traitement par le partenaire", className: "bg-stone-100 text-stone-700" },
+  CONFIRMED: { label: "Réussie", className: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" },
+  FAILED: { label: "Échec", className: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-100" },
   REFUNDED: { label: "Remboursée", className: "bg-stone-100 text-stone-700" },
-  EXPIRED: { label: "Expirée", className: "bg-stone-100 text-stone-700" },
+  EXPIRED: { label: "Échec", className: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-100" },
+};
+
+// Traduction des événements internes (voir src/orchestrator) en langage client simple.
+// Les types non mappés (ex. PROVIDER_CALL_ATTEMPT, détail d'orchestration) sont
+// volontairement omis de l'affichage plutôt que montrés bruts.
+const EVENT_LABELS: Partial<Record<string, string>> = {
+  ORDER_CREATED: "Commande créée",
+  PROVIDER_CONFIRMED: "Commande confirmée",
+  PROVIDER_FAILED: "Échec du traitement",
 };
 
 function formatPrice(cents: number, currency: string) {
@@ -96,16 +105,18 @@ export default function OrderPage() {
         </div>
       )}
 
-      {order.events && order.events.length > 0 && (
+      {order.events && order.events.some((event) => EVENT_LABELS[event.type]) && (
         <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-semibold text-stone-900">Historique</h2>
           <ul className="flex flex-col gap-2 text-sm">
-            {order.events.map((event) => (
-              <li key={event.id} className="flex gap-2">
-                <span className="text-stone-400">{new Date(event.createdAt).toLocaleTimeString("fr-FR")}</span>
-                <span className="text-stone-700">{event.type}</span>
-              </li>
-            ))}
+            {order.events
+              .filter((event) => EVENT_LABELS[event.type])
+              .map((event) => (
+                <li key={event.id} className="flex gap-2">
+                  <span className="text-stone-400">{new Date(event.createdAt).toLocaleTimeString("fr-FR")}</span>
+                  <span className="text-stone-700">{EVENT_LABELS[event.type]}</span>
+                </li>
+              ))}
           </ul>
         </div>
       )}
