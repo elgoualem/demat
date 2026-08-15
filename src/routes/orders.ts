@@ -65,6 +65,30 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
   res.status(202).json(order);
 }));
 
+// GET /orders — espace client : historique complet des commandes personnelles de
+// l'utilisateur connecté, tous services confondus, de la plus récente à la plus
+// ancienne. Les commandes passées pour le compte d'une organisation restent
+// consultables séparément via GET /organizations/:id/orders.
+router.get("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
+  const orders = await prisma.order.findMany({
+    where: { userId: req.userId! },
+    include: {
+      product: { select: { name: true, slug: true, category: true } },
+      provider: { select: { name: true, slug: true } },
+      invoice: true,
+    },
+    orderBy: { createdAt: "desc" },
+    omit: OMIT_PLATFORM_FEE,
+  });
+  res.json(
+    orders.map((o) =>
+      o.invoice
+        ? { ...o, invoice: { ...o.invoice, number: formatInvoiceNumber(o.invoice.issuedAt, o.invoice.sequenceNumber) } }
+        : o
+    )
+  );
+}));
+
 // Vrai si l'utilisateur peut voir cette commande : son auteur, un membre de
 // l'organisation pour laquelle elle a été passée, ou un admin plateforme.
 async function canAccessOrder(userId: string, order: { userId: string; organizationId: string | null }) {

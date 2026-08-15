@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { getOrder, downloadInvoicePdf, Order, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-
-const STATUS_META: Record<Order["status"], { label: string; className: string }> = {
-  PENDING: { label: "Traitement par le partenaire", className: "bg-stone-100 text-stone-700" },
-  CONFIRMED: { label: "Réussie", className: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" },
-  FAILED: { label: "Échec", className: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-100" },
-  REFUNDED: { label: "Remboursée", className: "bg-stone-100 text-stone-700" },
-  EXPIRED: { label: "Échec", className: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-100" },
-};
+import { ORDER_STATUS_LABEL, ORDER_STATUS_BADGE_CLASS } from "@/lib/orderStatus";
 
 // Traduction des événements internes (voir src/orchestrator) en langage client simple.
 // Les types non mappés (ex. PROVIDER_CALL_ATTEMPT, détail d'orchestration) sont
@@ -72,10 +66,14 @@ export default function OrderPage() {
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!order) return null;
 
-  const status = STATUS_META[order.status];
-
   return (
     <div className="mx-auto max-w-xl">
+      <p className="mb-4 text-sm text-stone-500">
+        <Link href="/orders" className="hover:text-stone-900">
+          Mes commandes
+        </Link>
+      </p>
+
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="font-serif text-3xl text-stone-900">{order.product?.name ?? `Commande ${order.id.slice(0, 8)}`}</h1>
@@ -84,7 +82,9 @@ export default function OrderPage() {
             {order.provider && <span className="text-stone-400"> · {order.provider.name}</span>}
           </p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-sm font-medium ${status.className}`}>{status.label}</span>
+        <span className={`rounded-full px-3 py-1 text-sm font-medium ${ORDER_STATUS_BADGE_CLASS[order.status]}`}>
+          {ORDER_STATUS_LABEL[order.status]}
+        </span>
       </div>
 
       {order.invoice && (

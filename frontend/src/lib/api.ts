@@ -190,6 +190,12 @@ export function getOrder(token: string, orderId: string): Promise<Order> {
   });
 }
 
+export function getOrders(token: string): Promise<Order[]> {
+  return request<Order[]>("/orders", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // Le PDF est derrière une route authentifiée (Bearer JWT) : un <a href> classique
 // ne peut pas porter l'en-tête, donc on le récupère en blob puis on déclenche
 // le téléchargement via une URL objet temporaire.
