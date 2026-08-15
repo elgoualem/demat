@@ -311,14 +311,29 @@ router.post("/providers/:id/import-catalog", asyncHandler(async (req, res) => {
 
 router.get("/products", asyncHandler(async (req, res) => {
   const products = await prisma.product.findMany({
-    include: { _count: { select: { offers: true } } },
+    include: {
+      _count: { select: { offers: true } },
+      subcategory: { include: { category: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
   res.json(products);
 }));
 
+// GET /admin/categories — arborescence complète pour le sélecteur de
+// sous-catégorie du formulaire produit (même forme que GET /categories public,
+// mais sans filtrer sur isActive : l'admin doit voir toutes les sous-catégories
+// même vides, pour pouvoir y classer un nouveau produit).
+router.get("/categories", asyncHandler(async (_req, res) => {
+  const categories = await prisma.category.findMany({
+    orderBy: { sortOrder: "asc" },
+    include: { subcategories: { orderBy: { sortOrder: "asc" } } },
+  });
+  res.json(categories);
+}));
+
 router.post("/products", asyncHandler(async (req, res) => {
-  const { name, slug, category, description, consumptionType, journeyType, currency, isActive, imageUrl } = req.body;
+  const { name, slug, category, subcategoryId, description, consumptionType, journeyType, currency, isActive, imageUrl } = req.body;
   if (!name || !slug || !category || !description) {
     return res.status(400).json({ error: "name_slug_category_description_required" });
   }
@@ -334,6 +349,7 @@ router.post("/products", asyncHandler(async (req, res) => {
       currency: currency || "EUR",
       isActive: isActive ?? true,
       ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
+      ...(subcategoryId !== undefined && { subcategoryId: subcategoryId || null }),
     },
   });
   res.status(201).json(product);
@@ -347,6 +363,7 @@ router.get("/products/:id", asyncHandler(async (req, res) => {
         include: { provider: { select: { id: true, name: true, slug: true } } },
         orderBy: { price: "asc" },
       },
+      subcategory: { include: { category: true } },
     },
   });
   if (!product) return res.status(404).json({ error: "product_not_found" });
@@ -354,12 +371,13 @@ router.get("/products/:id", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/products/:id", asyncHandler(async (req, res) => {
-  const { name, category, description, isActive, journeyType, consumptionType, currency, imageUrl } = req.body;
+  const { name, category, subcategoryId, description, isActive, journeyType, consumptionType, currency, imageUrl } = req.body;
   const product = await prisma.product.update({
     where: { id: req.params.id },
     data: {
       ...(name !== undefined && { name }),
       ...(category !== undefined && { category }),
+      ...(subcategoryId !== undefined && { subcategoryId: subcategoryId || null }),
       ...(description !== undefined && { description }),
       ...(isActive !== undefined && { isActive }),
       ...(journeyType !== undefined && { journeyType }),
