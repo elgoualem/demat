@@ -41,12 +41,12 @@ export default function Nav() {
   return (
     <nav className="sticky top-0 z-20 border-b border-stone-200 bg-cream/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <Link href="/" className="font-serif text-2xl tracking-tight text-stone-900">
+        <Link href="/" className="shrink-0 whitespace-nowrap font-serif text-2xl tracking-tight text-stone-900">
           DigiGo
         </Link>
 
         {/* Navigation desktop */}
-        <div className="hidden items-center gap-6 text-sm font-medium text-stone-600 md:flex">
+        <div className="hidden items-center gap-5 whitespace-nowrap text-sm font-medium text-stone-600 md:flex">
           <div ref={categoriesRef} className="relative">
             <button
               onClick={() => setCategoriesOpen((v) => !v)}
@@ -113,9 +113,12 @@ export default function Nav() {
             )}
           </div>
 
-          <div className="hidden items-center gap-2 text-sm sm:flex sm:gap-4">
+          <div className="hidden items-center gap-2 whitespace-nowrap text-sm sm:flex sm:gap-3">
             {user ? (
               <>
+                <Link href="/orders" className="font-medium text-stone-700 hover:text-stone-900">
+                  Mes commandes
+                </Link>
                 <Link href="/organizations" className="hidden font-medium text-stone-700 hover:text-stone-900 lg:inline">
                   Organisations
                 </Link>
@@ -124,10 +127,9 @@ export default function Nav() {
                     Admin
                   </Link>
                 )}
-                <span className="hidden text-stone-500 lg:inline">{user.email}</span>
                 <button
                   onClick={logout}
-                  className="rounded-full border border-stone-300 px-2.5 py-1.5 font-medium text-stone-700 transition hover:bg-stone-100 sm:px-3"
+                  className="shrink-0 rounded-full border border-stone-300 px-2.5 py-1.5 font-medium text-stone-700 transition hover:bg-stone-100 sm:px-3"
                 >
                   Déconnexion
                 </button>
@@ -214,6 +216,9 @@ export default function Nav() {
           <div className="flex flex-col gap-2 border-t border-stone-200 pt-4 text-sm">
             {user ? (
               <>
+                <Link href="/orders" onClick={() => setMobileOpen(false)} className="font-medium text-stone-700">
+                  Mes commandes
+                </Link>
                 <Link href="/organizations" onClick={() => setMobileOpen(false)} className="font-medium text-stone-700">
                   Organisations
                 </Link>

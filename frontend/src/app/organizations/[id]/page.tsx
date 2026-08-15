@@ -14,15 +14,9 @@ import {
   ApiError,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { ORDER_STATUS_LABEL as STATUS_LABEL } from "@/lib/orderStatus";
 
 const ROLE_LABEL: Record<string, string> = { OWNER: "Propriétaire", ADMIN: "Admin", MEMBER: "Membre" };
-const STATUS_LABEL: Record<Order["status"], string> = {
-  PENDING: "Traitement par le partenaire",
-  CONFIRMED: "Réussie",
-  FAILED: "Échec",
-  REFUNDED: "Remboursée",
-  EXPIRED: "Échec (expirée)",
-};
 
 function formatPrice(cents: number, currency: string) {
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency });

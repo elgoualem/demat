@@ -6,14 +6,7 @@ import AdminGuard from "@/components/AdminGuard";
 import { getAdminOrders, downloadInvoicePdf, AdminOrder, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, formatDate } from "@/lib/format";
-
-const STATUS_LABEL: Record<AdminOrder["status"], string> = {
-  PENDING: "Traitement par le partenaire",
-  CONFIRMED: "Réussie",
-  FAILED: "Échec",
-  REFUNDED: "Remboursée",
-  EXPIRED: "Échec (expirée)",
-};
+import { ORDER_STATUS_LABEL as STATUS_LABEL } from "@/lib/orderStatus";
 
 export default function AdminOrdersPage() {
   const { token } = useAuth();
