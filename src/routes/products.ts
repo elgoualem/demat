@@ -19,7 +19,7 @@ router.get("/", asyncHandler(async (req, res) => {
       ...(subcategory ? { subcategory: { slug: String(subcategory) } } : {}),
     },
     include: {
-      offers: { where: { isActive: true }, select: { price: true } },
+      offers: { where: { isActive: true }, select: { price: true, salesCount: true } },
       subcategory: { include: { category: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -30,6 +30,9 @@ router.get("/", asyncHandler(async (req, res) => {
       ...product,
       offerCount: offers.length,
       fromPrice: offers.length ? Math.min(...offers.map((o) => o.price)) : null,
+      // Somme des ventes de toutes les offres actives : utilisé pour trier
+      // "les plus demandés" côté accueil, jamais affiché au client tel quel.
+      popularityScore: offers.reduce((sum, o) => sum + o.salesCount, 0),
     }))
   );
 }));

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getProducts, Product, ApiError } from "@/lib/api";
-import { getCategoryMeta } from "@/lib/categories";
+import { getProducts, getCategories, Product, CategoryTreeNode, ApiError } from "@/lib/api";
+import { getProductCategoryMeta } from "@/lib/categories";
 
 function formatPrice(cents: number, currency: string) {
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency });
@@ -11,23 +11,26 @@ function formatPrice(cents: number, currency: string) {
 
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    getProducts()
-      .then(setProducts)
+    Promise.all([getProducts(), getCategories()])
+      .then(([p, c]) => {
+        setProducts(p);
+        setCategories(c);
+      })
       .catch(() => setError("Impossible de charger le catalogue."))
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = useMemo(() => Array.from(new Set(products.map((p) => p.category))), [products]);
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return products.filter((p) => {
-      if (activeCategory && p.category !== activeCategory) return false;
+      if (activeCategory && p.subcategory?.category.slug !== activeCategory) return false;
       if (!query) return true;
       return p.name.toLowerCase().includes(query) || p.description.toLowerCase().includes(query);
     });
@@ -35,14 +38,16 @@ export default function HomePage() {
 
   const totalOffers = useMemo(() => products.reduce((sum, p) => sum + p.offerCount, 0), [products]);
   const maxOffers = useMemo(() => products.reduce((max, p) => Math.max(max, p.offerCount), 0), [products]);
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const p of products) counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
-    return counts;
-  }, [products]);
 
-  function goToCategory(category: string | null) {
-    setActiveCategory(category);
+  const mostRequested = useMemo(
+    () => [...products].sort((a, b) => b.popularityScore - a.popularityScore).slice(0, 4),
+    [products]
+  );
+
+  const voyagesCategory = categories.find((c) => c.slug === "voyages");
+
+  function goToCategory(categorySlug: string | null) {
+    setActiveCategory(categorySlug);
     document.getElementById("catalogue")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -86,14 +91,14 @@ export default function HomePage() {
             href="#catalogue"
             className="rounded-full bg-brand-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-brand-700"
           >
-            Parcourir le catalogue
+            Commencer maintenant
           </a>
-          <Link
-            href="/register"
+          <a
+            href="#categories"
             className="rounded-full border border-stone-300 bg-white px-6 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
           >
-            Créer un compte
-          </Link>
+            Découvrir les services
+          </a>
         </div>
 
         {/* Réassurance immédiate */}
@@ -119,7 +124,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Arguments de confiance — chiffres réels, jamais inventés */}
       {!loading && products.length > 0 && (
         <section className="mb-14 grid grid-cols-2 gap-6 border-y border-stone-200 py-6 sm:grid-cols-3">
           <div>
@@ -137,9 +142,58 @@ export default function HomePage() {
         </section>
       )}
 
+      {/* Cartes d'accès rapide */}
+      {categories.length > 0 && (
+        <section id="categories" className="mb-14 scroll-mt-24">
+          <h2 className="mb-6 font-serif text-3xl text-stone-900">Parcourir par catégorie</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => goToCategory(category.slug)}
+                className="flex flex-col items-start gap-2 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <span className="text-2xl">{category.icon}</span>
+                <span className="font-semibold text-stone-900">{category.name}</span>
+                <span className="text-xs text-stone-400">
+                  {category.productCount} produit{category.productCount > 1 ? "s" : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Services les plus demandés */}
+      {mostRequested.length > 0 && (
+        <section className="mb-14">
+          <h2 className="mb-6 font-serif text-3xl text-stone-900">Les plus demandés</h2>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {mostRequested.map((product) => {
+              const meta = getProductCategoryMeta(product);
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${product.slug}`}
+                  className="flex flex-col gap-2 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                >
+                  <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${meta.badge}`}>
+                    {meta.emoji} {meta.label}
+                  </span>
+                  <h3 className="font-semibold text-stone-900">{product.name}</h3>
+                  <p className="text-lg font-bold text-stone-900">
+                    {product.fromPrice !== null ? formatPrice(product.fromPrice, product.currency) : "—"}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Comment ça marche */}
       <section id="comment-ca-marche" className="mb-14 scroll-mt-24">
-        <h2 className="mb-2 font-serif text-3xl text-stone-900">Comment ça marche</h2>
+        <h2 className="mb-2 font-serif text-3xl text-stone-900">DigiGo, c&apos;est simple</h2>
         <p className="mb-8 max-w-xl text-stone-500">De la sélection à la réception, trois étapes simples et suivies de bout en bout.</p>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {[
@@ -179,30 +233,47 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Catégories */}
-      {categories.length > 0 && (
-        <section id="categories" className="mb-14 scroll-mt-24">
-          <h2 className="mb-6 font-serif text-3xl text-stone-900">Parcourir par catégorie</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {categories.map((category) => {
-              const meta = getCategoryMeta(category);
-              return (
-                <button
-                  key={category}
-                  onClick={() => goToCategory(category)}
-                  className="flex flex-col items-start gap-2 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <span className="text-2xl">{meta.emoji}</span>
-                  <span className="font-semibold text-stone-900">{meta.label}</span>
-                  <span className="text-xs text-stone-400">
-                    {categoryCounts.get(category) ?? 0} produit{(categoryCounts.get(category) ?? 0) > 1 ? "s" : ""}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+      {/* Section voyages */}
+      {voyagesCategory && voyagesCategory.productCount > 0 && (
+        <section className="mb-14 overflow-hidden rounded-3xl bg-navy p-8 text-white sm:p-12">
+          <p className="mb-2 text-xs font-semibold tracking-widest text-turquoise uppercase">Voyages</p>
+          <h2 className="font-serif text-3xl leading-tight sm:text-4xl">
+            Vos prochains billets et séjours, réservés en toute confiance.
+          </h2>
+          <p className="mt-3 max-w-lg text-white/70">
+            {voyagesCategory.productCount} offre{voyagesCategory.productCount > 1 ? "s" : ""} disponible
+            {voyagesCategory.productCount > 1 ? "s" : ""} sur DigiGo — comparez les fournisseurs vérifiés avant de réserver.
+          </p>
+          <button
+            onClick={() => goToCategory("voyages")}
+            className="mt-6 rounded-full bg-white px-6 py-3 text-sm font-medium text-navy transition hover:bg-white/90"
+          >
+            Voir les offres voyage
+          </button>
         </section>
       )}
+
+      {/* Section fidélisation */}
+      <section className="mb-14 rounded-3xl border border-stone-200 bg-white p-8 sm:p-12">
+        <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="mb-2 text-xs font-semibold tracking-widest text-brand-600 uppercase">Programme DigiGo</p>
+            <h2 className="font-serif text-2xl text-stone-900 sm:text-3xl">
+              Un compte, tous vos avantages.
+            </h2>
+            <p className="mt-3 max-w-lg text-stone-500">
+              Historique centralisé, factures toujours accessibles, et accès en avant-première aux offres
+              réservées aux membres.
+            </p>
+          </div>
+          <Link
+            href="/register"
+            className="shrink-0 rounded-full bg-brand-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-brand-700"
+          >
+            Créer un compte gratuit
+          </Link>
+        </div>
+      </section>
 
       {/* Catalogue */}
       <section id="catalogue" className="scroll-mt-24">
@@ -226,17 +297,16 @@ export default function HomePage() {
               Tout
             </button>
             {categories.map((category) => {
-              const meta = getCategoryMeta(category);
-              const active = activeCategory === category;
+              const active = activeCategory === category.slug;
               return (
                 <button
-                  key={category}
-                  onClick={() => setActiveCategory(category)}
+                  key={category.id}
+                  onClick={() => setActiveCategory(category.slug)}
                   className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                     active ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
                   }`}
                 >
-                  {meta.emoji} {meta.label}
+                  {category.icon} {category.name}
                 </button>
               );
             })}
@@ -254,7 +324,7 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((product) => {
-              const meta = getCategoryMeta(product.category);
+              const meta = getProductCategoryMeta(product);
               return (
                 <Link
                   key={product.id}
