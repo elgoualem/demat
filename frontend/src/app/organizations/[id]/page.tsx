@@ -17,11 +17,11 @@ import { useAuth } from "@/lib/auth";
 
 const ROLE_LABEL: Record<string, string> = { OWNER: "Propriétaire", ADMIN: "Admin", MEMBER: "Membre" };
 const STATUS_LABEL: Record<Order["status"], string> = {
-  PENDING: "En attente",
-  CONFIRMED: "Confirmée",
-  FAILED: "Échouée",
+  PENDING: "Traitement par le partenaire",
+  CONFIRMED: "Réussie",
+  FAILED: "Échec",
   REFUNDED: "Remboursée",
-  EXPIRED: "Expirée",
+  EXPIRED: "Échec (expirée)",
 };
 
 function formatPrice(cents: number, currency: string) {
