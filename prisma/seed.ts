@@ -2,6 +2,95 @@ import { PrismaClient, CommissionType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Taxonomie DigiGo (spécification DigiGo, sections 5 à 11) : catégories
+// principales et leurs sous-catégories, dans l'ordre de présentation client.
+interface CategorySeed {
+  name: string;
+  slug: string;
+  icon: string;
+  sortOrder: number;
+  subcategories: Array<{ name: string; slug: string; sortOrder: number }>;
+}
+
+const CATEGORIES: CategorySeed[] = [
+  {
+    name: "Recharges", slug: "recharges", icon: "📱", sortOrder: 1,
+    subcategories: [
+      { name: "Recharge téléphonique", slug: "recharge-telephonique", sortOrder: 1 },
+      { name: "Recharge internet", slug: "recharge-internet", sortOrder: 2 },
+      { name: "Recharge forfait mobile", slug: "recharge-forfait-mobile", sortOrder: 3 },
+      { name: "Recharge internationale", slug: "recharge-internationale", sortOrder: 4 },
+    ],
+  },
+  {
+    name: "Argent & paiements", slug: "argent-paiements", icon: "💳", sortOrder: 2,
+    subcategories: [
+      { name: "Recharge de portefeuille", slug: "recharge-portefeuille", sortOrder: 1 },
+      { name: "Transfert d'argent", slug: "transfert-argent", sortOrder: 2 },
+      { name: "Envoi international", slug: "envoi-international", sortOrder: 3 },
+      { name: "Réception d'argent", slug: "reception-argent", sortOrder: 4 },
+      { name: "Cartes bancaires prépayées", slug: "cartes-bancaires-prepayees", sortOrder: 5 },
+      { name: "Paiement en ligne", slug: "paiement-en-ligne", sortOrder: 6 },
+      { name: "Vérification de transaction", slug: "verification-transaction", sortOrder: 7 },
+    ],
+  },
+  {
+    name: "Cartes prépayées", slug: "cartes-prepayees", icon: "🎁", sortOrder: 3,
+    subcategories: [
+      { name: "Cartes Visa", slug: "cartes-visa", sortOrder: 1 },
+      { name: "Cartes Mastercard", slug: "cartes-mastercard", sortOrder: 2 },
+      { name: "Cartes de débit", slug: "cartes-debit", sortOrder: 3 },
+      { name: "Cartes cadeaux", slug: "cartes-cadeaux", sortOrder: 4 },
+      { name: "Cartes de jeux", slug: "cartes-jeux", sortOrder: 5 },
+      { name: "Cartes de streaming", slug: "cartes-streaming", sortOrder: 6 },
+      { name: "Cartes de téléphonie", slug: "cartes-telephonie", sortOrder: 7 },
+    ],
+  },
+  {
+    name: "Voyages", slug: "voyages", icon: "✈️", sortOrder: 4,
+    subcategories: [
+      { name: "Billets d'avion", slug: "billets-avion", sortOrder: 1 },
+      { name: "Billets de bus", slug: "billets-bus", sortOrder: 2 },
+      { name: "Billets de train", slug: "billets-train", sortOrder: 3 },
+      { name: "Hôtels", slug: "hotels", sortOrder: 4 },
+      { name: "Transferts", slug: "transferts-voyage", sortOrder: 5 },
+      { name: "Activités", slug: "activites", sortOrder: 6 },
+      { name: "Assurance voyage", slug: "assurance-voyage", sortOrder: 7 },
+    ],
+  },
+  {
+    name: "Assurances", slug: "assurances", icon: "🛡️", sortOrder: 5,
+    subcategories: [
+      { name: "Voyage", slug: "assurance-voyage-cat", sortOrder: 1 },
+      { name: "Santé", slug: "assurance-sante", sortOrder: 2 },
+      { name: "Véhicule", slug: "assurance-vehicule", sortOrder: 3 },
+      { name: "Habitation", slug: "assurance-habitation", sortOrder: 4 },
+      { name: "Téléphone", slug: "assurance-telephone", sortOrder: 5 },
+    ],
+  },
+  {
+    name: "Factures & services", slug: "factures-services", icon: "🧾", sortOrder: 6,
+    subcategories: [
+      { name: "Téléphone", slug: "facture-telephone", sortOrder: 1 },
+      { name: "Internet", slug: "facture-internet", sortOrder: 2 },
+      { name: "Électricité", slug: "facture-electricite", sortOrder: 3 },
+      { name: "Eau", slug: "facture-eau", sortOrder: 4 },
+      { name: "Télévision", slug: "facture-television", sortOrder: 5 },
+      { name: "Abonnements numériques", slug: "abonnements-numeriques", sortOrder: 6 },
+    ],
+  },
+];
+
+// Reclasse les produits legacy (champ `category` à plat : "telephonie",
+// "argent", "voyage", ...) vers une sous-catégorie DigiGo par défaut. Mapping
+// best-effort pour la donnée de démo existante ; un admin peut réassigner
+// individuellement chaque produit ensuite (voir /admin/products).
+const LEGACY_CATEGORY_TO_SUBCATEGORY: Record<string, string> = {
+  telephonie: "recharge-telephonique",
+  argent: "transfert-argent",
+  voyage: "billets-avion",
+};
+
 interface ProviderSeed {
   name: string;
   slug: string;
@@ -105,6 +194,23 @@ const PRODUCTS: ProductSeed[] = [
 ];
 
 async function main() {
+  const subcategoryIds = new Map<string, string>();
+  for (const cat of CATEGORIES) {
+    const category = await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: { name: cat.name, icon: cat.icon, sortOrder: cat.sortOrder },
+      create: { name: cat.name, slug: cat.slug, icon: cat.icon, sortOrder: cat.sortOrder },
+    });
+    for (const sub of cat.subcategories) {
+      const subcategory = await prisma.subcategory.upsert({
+        where: { categoryId_slug: { categoryId: category.id, slug: sub.slug } },
+        update: { name: sub.name, sortOrder: sub.sortOrder },
+        create: { name: sub.name, slug: sub.slug, sortOrder: sub.sortOrder, categoryId: category.id },
+      });
+      subcategoryIds.set(sub.slug, subcategory.id);
+    }
+  }
+
   const providerIds = new Map<string, string>();
   for (const p of PROVIDERS) {
     const provider = await prisma.provider.upsert({
@@ -122,6 +228,8 @@ async function main() {
   }
 
   for (const prod of PRODUCTS) {
+    const subcategorySlug = LEGACY_CATEGORY_TO_SUBCATEGORY[prod.category];
+    const subcategoryId = subcategorySlug ? subcategoryIds.get(subcategorySlug) : undefined;
     const product = await prisma.product.upsert({
       where: { slug: prod.slug },
       update: {},
@@ -129,6 +237,7 @@ async function main() {
         name: prod.name,
         slug: prod.slug,
         category: prod.category,
+        subcategoryId,
         description: prod.description,
         consumptionType: prod.consumptionType,
         currency: "EUR",
@@ -151,6 +260,19 @@ async function main() {
           kycVerified: offer.kycVerified,
         },
       });
+    }
+  }
+
+  // Reclasse tout produit existant (créé hors de ce seed, ex. via l'admin ou un
+  // import de catalogue fournisseur) qui n'a pas encore de sous-catégorie —
+  // mapping best-effort sur son champ `category` legacy, sinon laissé non classé
+  // pour reclassement manuel dans /admin/products plutôt qu'un choix arbitraire.
+  const unclassified = await prisma.product.findMany({ where: { subcategoryId: null } });
+  for (const product of unclassified) {
+    const subcategorySlug = LEGACY_CATEGORY_TO_SUBCATEGORY[product.category];
+    const subcategoryId = subcategorySlug ? subcategoryIds.get(subcategorySlug) : undefined;
+    if (subcategoryId) {
+      await prisma.product.update({ where: { id: product.id }, data: { subcategoryId } });
     }
   }
 

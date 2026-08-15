@@ -125,11 +125,44 @@ model Provider {
   orders    Order[]
 }
 
+// Taxonomie DigiGo : Category (Recharges, Argent & paiements, ...) > Subcategory
+// (Recharge téléphonique, Transfert d'argent, ...) > Product. Le client navigue
+// et filtre selon cette hiérarchie ; jamais selon le fournisseur qui traite la
+// commande en coulisses (le fournisseur reste sur Provider/Offer, en back-office).
+model Category {
+  id            String        @id @default(uuid())
+  name          String
+  slug          String        @unique
+  icon          String        @default("🔹")
+  sortOrder     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  subcategories Subcategory[]
+}
+
+model Subcategory {
+  id         String   @id @default(uuid())
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+  name       String
+  slug       String
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  products   Product[]
+
+  @@unique([categoryId, slug])
+}
+
 model Product {
   id              String          @id @default(uuid())
   name            String
   slug            String          @unique
+  // Legacy : catégorie à plat, conservée le temps de migrer les pages client
+  // vers la hiérarchie Category/Subcategory ci-dessus (voir subcategoryId).
   category        String
+  // Nullable pendant la transition : un produit non encore reclassé retombe sur
+  // le champ `category` legacy plutôt que de casser l'affichage.
+  subcategory     Subcategory?    @relation(fields: [subcategoryId], references: [id])
+  subcategoryId   String?
   description     String
   // Posée manuellement ou par "Importer le catalogue" (jamais écrasée si déjà
   // définie : un produit peut être vendu par plusieurs fournisseurs, la première
