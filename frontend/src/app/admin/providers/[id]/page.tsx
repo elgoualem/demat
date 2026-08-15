@@ -142,12 +142,12 @@ export default function AdminProviderDetailPage() {
         <Link href="/admin/providers" className="mb-4 inline-block text-sm text-stone-500 hover:text-stone-700">
           ← Fournisseurs
         </Link>
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl text-stone-900">{provider.name}</h1>
             <p className="mt-1 text-stone-500">{provider.slug}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={provider.connectorKey}
               disabled={saving}
