@@ -93,6 +93,7 @@ export default function Nav() {
                 <input
                   autoFocus
                   type="search"
+                  aria-label="Rechercher un produit"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onBlur={() => !search && setSearchOpen(false)}
@@ -178,6 +179,7 @@ export default function Nav() {
             </svg>
             <input
               type="search"
+              aria-label="Rechercher un produit"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher un produit…"

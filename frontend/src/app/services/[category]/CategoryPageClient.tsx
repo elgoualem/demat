@@ -99,6 +99,7 @@ export default function CategoryPageClient() {
             <div className="mb-8 flex flex-wrap gap-2">
               <button
                 onClick={() => setActiveSubcategory(null)}
+                aria-pressed={activeSubcategory === null}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                   activeSubcategory === null ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
                 }`}
@@ -109,6 +110,7 @@ export default function CategoryPageClient() {
                 <button
                   key={sub.id}
                   onClick={() => setActiveSubcategory(sub.slug)}
+                  aria-pressed={activeSubcategory === sub.slug}
                   className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                     activeSubcategory === sub.slug ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
                   }`}
