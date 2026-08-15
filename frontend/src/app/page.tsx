@@ -70,11 +70,6 @@ function HomePageContent() {
 
   const voyagesCategory = categories.find((c) => c.slug === "voyages");
 
-  function goToCategory(categorySlug: string | null) {
-    setActiveCategory(categorySlug);
-    document.getElementById("catalogue")?.scrollIntoView({ behavior: "smooth" });
-  }
-
   function handleSearchChange(value: string) {
     setSearch(value);
     if (value) document.getElementById("catalogue")?.scrollIntoView({ behavior: "smooth" });
@@ -172,9 +167,9 @@ function HomePageContent() {
           <h2 className="mb-6 font-serif text-3xl text-stone-900">Parcourir par catégorie</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {categories.map((category) => (
-              <button
+              <Link
                 key={category.id}
-                onClick={() => goToCategory(category.slug)}
+                href={`/services/${category.slug}`}
                 className="flex flex-col items-start gap-2 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <span className="text-2xl">{category.icon}</span>
@@ -182,7 +177,7 @@ function HomePageContent() {
                 <span className="text-xs text-stone-400">
                   {category.productCount} produit{category.productCount > 1 ? "s" : ""}
                 </span>
-              </button>
+              </Link>
             ))}
           </div>
         </section>
@@ -268,12 +263,12 @@ function HomePageContent() {
             {voyagesCategory.productCount} offre{voyagesCategory.productCount > 1 ? "s" : ""} disponible
             {voyagesCategory.productCount > 1 ? "s" : ""} sur DigiGo — comparez les fournisseurs vérifiés avant de réserver.
           </p>
-          <button
-            onClick={() => goToCategory("voyages")}
-            className="mt-6 rounded-full bg-white px-6 py-3 text-sm font-medium text-navy transition hover:bg-white/90"
+          <Link
+            href="/services/voyages"
+            className="mt-6 inline-block rounded-full bg-white px-6 py-3 text-sm font-medium text-navy transition hover:bg-white/90"
           >
             Voir les offres voyage
-          </button>
+          </Link>
         </section>
       )}
 

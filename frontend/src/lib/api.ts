@@ -146,8 +146,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-export function getProducts(): Promise<Product[]> {
-  return request<Product[]>("/products");
+export function getProducts(filters?: { categorySlug?: string; subcategory?: string }): Promise<Product[]> {
+  const params = new URLSearchParams();
+  if (filters?.categorySlug) params.set("categorySlug", filters.categorySlug);
+  if (filters?.subcategory) params.set("subcategory", filters.subcategory);
+  const qs = params.toString();
+  return request<Product[]>(`/products${qs ? `?${qs}` : ""}`);
 }
 
 export function getCategories(): Promise<CategoryTreeNode[]> {

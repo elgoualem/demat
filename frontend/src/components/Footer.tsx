@@ -12,8 +12,8 @@ export default function Footer() {
         <div className="flex flex-wrap gap-8 text-sm">
           <div className="flex flex-col gap-2">
             <span className="font-medium text-stone-900">Plateforme</span>
-            <Link href="/#categories" className="text-stone-500 hover:text-stone-900">
-              Catégories
+            <Link href="/services" className="text-stone-500 hover:text-stone-900">
+              Tous les services
             </Link>
             <Link href="/#catalogue" className="text-stone-500 hover:text-stone-900">
               Catalogue
