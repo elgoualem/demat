@@ -98,6 +98,16 @@ export default function ProductPageClient() {
         {product.offers.length} fournisseur{product.offers.length > 1 ? "s" : ""} proposent ce produit. Classés par prix.
       </p>
 
+      {product.journeyType !== "NATIVE" && (
+        <p className="mt-4 flex items-start gap-2 rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-700">
+          <span aria-hidden="true">ⓘ</span>
+          <span>
+            Ce service est traité par notre partenaire : la confirmation peut prendre un peu plus de temps qu&apos;une
+            recharge instantanée. Vous pourrez suivre l&apos;avancement dans « Mes commandes ».
+          </span>
+        </p>
+      )}
+
       {orgs.length > 0 && (
         <label className="mt-6 flex w-fit items-center gap-2 text-sm">
           <span className="font-medium text-stone-700">Commander pour :</span>
