@@ -3,19 +3,21 @@
 import { useEffect, useState, FormEvent } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/AdminGuard";
-import { getAdminProducts, createAdminProduct, updateAdminProduct, AdminProduct, ApiError } from "@/lib/api";
+import { getAdminProducts, createAdminProduct, updateAdminProduct, getAdminCategories, AdminProduct, AdminCategory, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function AdminProductsPage() {
   const { token } = useAuth();
   const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [creating, setCreating] = useState(false);
@@ -23,24 +25,42 @@ export default function AdminProductsPage() {
   function load() {
     if (!token) return;
     setLoading(true);
-    getAdminProducts(token)
-      .then(setProducts)
+    Promise.all([getAdminProducts(token), getAdminCategories(token)])
+      .then(([p, c]) => {
+        setProducts(p);
+        setCategories(c);
+        if (c.length > 0) setCategoryId(c[0].id);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur inconnue"))
       .finally(() => setLoading(false));
   }
 
   useEffect(load, [token]);
 
+  const subcategoriesForSelectedCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
+
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
+    const selectedCategory = categories.find((c) => c.id === categoryId);
+    if (!selectedCategory || !subcategoryId) {
+      setError("Choisissez une catégorie et une sous-catégorie DigiGo.");
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
-      await createAdminProduct(token, { name, slug, category, description, imageUrl: imageUrl || undefined });
+      await createAdminProduct(token, {
+        name,
+        slug,
+        category: selectedCategory.slug,
+        subcategoryId,
+        description,
+        imageUrl: imageUrl || undefined,
+      });
       setName("");
       setSlug("");
-      setCategory("");
+      setSubcategoryId("");
       setDescription("");
       setImageUrl("");
       load();
@@ -95,7 +115,15 @@ export default function AdminProductsPage() {
                       <p className="font-medium text-stone-900">{p.name}</p>
                       <p className="text-xs text-stone-400">{p.slug}</p>
                     </td>
-                    <td className="p-3 text-stone-600">{p.category}</td>
+                    <td className="p-3 text-stone-600">
+                      {p.subcategory ? (
+                        <span>
+                          {p.subcategory.category.icon} {p.subcategory.category.name} · {p.subcategory.name}
+                        </span>
+                      ) : (
+                        <span className="italic text-amber-600">{p.category} (non classé)</span>
+                      )}
+                    </td>
                     <td className="p-3 text-stone-600">{p._count.offers}</td>
                     <td className="p-3">
                       <button
@@ -149,17 +177,44 @@ export default function AdminProductsPage() {
                 className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-stone-700">Catégorie</span>
-              <input
-                type="text"
-                required
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="telephonie, argent, voyage…"
-                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-              />
-            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-stone-700">Catégorie</span>
+                <select
+                  required
+                  value={categoryId}
+                  onChange={(e) => {
+                    setCategoryId(e.target.value);
+                    setSubcategoryId("");
+                  }}
+                  className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon} {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-stone-700">Sous-catégorie</span>
+                <select
+                  required
+                  value={subcategoryId}
+                  onChange={(e) => setSubcategoryId(e.target.value)}
+                  className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                >
+                  <option value="" disabled>
+                    Choisir…
+                  </option>
+                  {subcategoriesForSelectedCategory.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-stone-700">Description</span>
               <textarea

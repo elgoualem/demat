@@ -10,8 +10,10 @@ import {
   createAdminOffer,
   updateAdminOffer,
   getAdminProviders,
+  getAdminCategories,
   AdminProductDetail,
   AdminProvider,
+  AdminCategory,
   ApiError,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -21,22 +23,37 @@ export default function AdminProductDetailPage() {
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<AdminProductDetail | null>(null);
   const [providers, setProviders] = useState<AdminProvider[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingOfferId, setSavingOfferId] = useState<string | null>(null);
+  const [savingCategory, setSavingCategory] = useState(false);
 
   const [providerId, setProviderId] = useState("");
   const [price, setPrice] = useState("");
   const [creating, setCreating] = useState(false);
+  const [categoryId, setCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
 
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const [p, provs] = await Promise.all([getAdminProduct(token, params.id), getAdminProviders(token)]);
+      const [p, provs, cats] = await Promise.all([
+        getAdminProduct(token, params.id),
+        getAdminProviders(token),
+        getAdminCategories(token),
+      ]);
       setProduct(p);
       setProviders(provs);
+      setCategories(cats);
       if (!providerId && provs.length > 0) setProviderId(provs[0].id);
+      if (p.subcategory) {
+        setCategoryId(p.subcategory.category.id);
+        setSubcategoryId(p.subcategory.id);
+      } else if (cats.length > 0) {
+        setCategoryId(cats[0].id);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
     } finally {
@@ -50,6 +67,8 @@ export default function AdminProductDetailPage() {
     load();
   }, [load]);
 
+  const subcategoriesForSelectedCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
+
   async function toggleProductActive() {
     if (!token || !product) return;
     try {
@@ -57,6 +76,25 @@ export default function AdminProductDetailPage() {
       setProduct((prev) => (prev ? { ...prev, isActive: updated.isActive } : prev));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
+    }
+  }
+
+  async function handleSaveCategory(newSubcategoryId: string) {
+    if (!token || !product || !newSubcategoryId) return;
+    const selectedCategory = categories.find((c) => c.id === categoryId);
+    if (!selectedCategory) return;
+    setSavingCategory(true);
+    setError(null);
+    try {
+      const updated = await updateAdminProduct(token, product.id, {
+        category: selectedCategory.slug,
+        subcategoryId: newSubcategoryId,
+      });
+      setProduct((prev) => (prev ? { ...prev, category: updated.category, subcategory: updated.subcategory } : prev));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur inconnue");
+    } finally {
+      setSavingCategory(false);
     }
   }
 
@@ -115,7 +153,7 @@ export default function AdminProductDetailPage() {
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="font-serif text-3xl text-stone-900">{product.name}</h1>
-            <p className="mt-1 text-stone-500">{product.category} · {product.slug}</p>
+            <p className="mt-1 text-stone-500">{product.slug}</p>
           </div>
           <button
             onClick={toggleProductActive}
@@ -125,6 +163,50 @@ export default function AdminProductDetailPage() {
           >
             {product.isActive ? "Actif" : "Inactif"}
           </button>
+        </div>
+
+        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium text-stone-700">Catégorie</span>
+            <select
+              value={categoryId}
+              disabled={savingCategory}
+              onChange={(e) => {
+                setCategoryId(e.target.value);
+                setSubcategoryId("");
+              }}
+              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.icon} {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium text-stone-700">Sous-catégorie</span>
+            <select
+              value={subcategoryId}
+              disabled={savingCategory}
+              onChange={(e) => {
+                setSubcategoryId(e.target.value);
+                handleSaveCategory(e.target.value);
+              }}
+              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            >
+              <option value="" disabled>
+                Choisir…
+              </option>
+              {subcategoriesForSelectedCategory.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {!product.subcategory && <span className="text-xs italic text-amber-600">Non classé ({product.category})</span>}
+          {savingCategory && <span className="text-xs text-stone-400">Enregistrement…</span>}
         </div>
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}

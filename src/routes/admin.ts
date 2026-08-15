@@ -351,6 +351,7 @@ router.post("/products", asyncHandler(async (req, res) => {
       ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
       ...(subcategoryId !== undefined && { subcategoryId: subcategoryId || null }),
     },
+    include: { subcategory: { include: { category: true } } },
   });
   res.status(201).json(product);
 }));
@@ -385,6 +386,7 @@ router.patch("/products/:id", asyncHandler(async (req, res) => {
       ...(currency !== undefined && { currency }),
       ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
     },
+    include: { subcategory: { include: { category: true } } },
   });
   res.json(product);
 }));

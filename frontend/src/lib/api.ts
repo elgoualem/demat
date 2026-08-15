@@ -300,6 +300,7 @@ export interface AdminProduct {
   name: string;
   slug: string;
   category: string;
+  subcategory: SubcategoryRef | null;
   description: string;
   imageUrl: string | null;
   currency: string;
@@ -308,6 +309,18 @@ export interface AdminProduct {
   isActive: boolean;
   createdAt: string;
   _count: { offers: number };
+}
+
+export interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  subcategories: Array<{ id: string; name: string; slug: string; categoryId: string }>;
+}
+
+export function getAdminCategories(token: string): Promise<AdminCategory[]> {
+  return adminRequest(token, "/admin/categories");
 }
 
 export interface AdminOffer {
@@ -456,14 +469,27 @@ export function getAdminProduct(token: string, id: string): Promise<AdminProduct
   return adminRequest(token, `/admin/products/${id}`);
 }
 
+export interface AdminProductWrite {
+  name?: string;
+  slug?: string;
+  category?: string;
+  subcategoryId?: string | null;
+  description?: string;
+  consumptionType?: string;
+  journeyType?: string;
+  currency?: string;
+  imageUrl?: string;
+  isActive?: boolean;
+}
+
 export function createAdminProduct(
   token: string,
-  data: { name: string; slug: string; category: string; description: string; consumptionType?: string; journeyType?: string; currency?: string; imageUrl?: string }
+  data: { name: string; slug: string; category: string; subcategoryId?: string; description: string; consumptionType?: string; journeyType?: string; currency?: string; imageUrl?: string }
 ): Promise<AdminProduct> {
   return adminRequest(token, "/admin/products", { method: "POST", body: JSON.stringify(data) });
 }
 
-export function updateAdminProduct(token: string, id: string, data: Partial<AdminProduct>): Promise<AdminProduct> {
+export function updateAdminProduct(token: string, id: string, data: AdminProductWrite): Promise<AdminProduct> {
   return adminRequest(token, `/admin/products/${id}`, { method: "PATCH", body: JSON.stringify(data) });
 }
 
