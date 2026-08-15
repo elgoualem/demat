@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getProduct, createOrder, listOrganizations, ProductDetail, Organization, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { getCategoryMeta } from "@/lib/categories";
+import { getProductCategoryMeta } from "@/lib/categories";
 
 function formatPrice(cents: number, currency: string) {
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency });
@@ -60,7 +60,7 @@ export default function ProductPage() {
   if (error && !product) return <p className="text-sm text-red-600">{error}</p>;
   if (!product) return null;
 
-  const meta = getCategoryMeta(product.category);
+  const meta = getProductCategoryMeta(product);
 
   return (
     <div className="mx-auto max-w-2xl">

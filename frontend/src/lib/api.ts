@@ -7,17 +7,46 @@ export interface Provider {
   status?: string;
 }
 
+export interface CategoryRef {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+}
+
+export interface SubcategoryRef {
+  id: string;
+  name: string;
+  slug: string;
+  category: CategoryRef;
+}
+
 export interface Product {
   id: string;
   name: string;
   slug: string;
+  // Legacy : conservé le temps que tous les produits soient reclassés dans la
+  // taxonomie DigiGo (subcategory). Ne plus utiliser pour l'affichage client —
+  // préférer subcategory.category quand il est renseigné.
   category: string;
+  subcategory: SubcategoryRef | null;
   description: string;
   imageUrl: string | null;
   currency: string;
   fromPrice: number | null;
   offerCount: number;
+  popularityScore: number;
 }
+
+export interface CategoryTreeNode {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  productCount: number;
+  subcategories: Array<{ id: string; name: string; slug: string; productCount: number }>;
+}
+
 
 export interface Offer {
   id: string;
@@ -119,6 +148,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export function getProducts(): Promise<Product[]> {
   return request<Product[]>("/products");
+}
+
+export function getCategories(): Promise<CategoryTreeNode[]> {
+  return request<CategoryTreeNode[]>("/categories");
 }
 
 export function getProduct(slug: string): Promise<ProductDetail> {
