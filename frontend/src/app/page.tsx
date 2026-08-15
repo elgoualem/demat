@@ -98,6 +98,7 @@ function HomePageContent() {
           </svg>
           <input
             type="search"
+            aria-label="Rechercher un produit"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Rechercher un produit… (ex : forfait mobile, transfert d'argent)"
@@ -309,6 +310,7 @@ function HomePageContent() {
           <div className="mb-8 flex flex-wrap gap-2">
             <button
               onClick={() => setActiveCategory(null)}
+              aria-pressed={activeCategory === null}
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                 activeCategory === null ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
               }`}
@@ -321,6 +323,7 @@ function HomePageContent() {
                 <button
                   key={category.id}
                   onClick={() => setActiveCategory(category.slug)}
+                  aria-pressed={active}
                   className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                     active ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
                   }`}
