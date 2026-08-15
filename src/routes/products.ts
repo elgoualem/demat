@@ -4,19 +4,27 @@ import { asyncHandler } from "../middleware/asyncHandler";
 
 const router = Router();
 
-// GET /products?category=telephonie&subcategory=recharge-telephonique — catalogue,
-// un produit générique par ligne. `subcategory` filtre sur la nouvelle taxonomie
-// DigiGo (slug de Subcategory) ; `category` reste supporté pour compatibilité avec
-// l'ancien champ à plat le temps que tous les produits soient reclassés.
+// GET /products?categorySlug=recharges&subcategory=recharge-telephonique — catalogue,
+// un produit générique par ligne. `categorySlug` filtre sur une catégorie DigiGo
+// entière (toutes ses sous-catégories confondues, pour les pages /services/:category) ;
+// `subcategory` filtre sur une sous-catégorie précise ; `category` (legacy, ancien
+// champ à plat) reste supporté pour compatibilité le temps que tous les produits
+// soient reclassés.
 // Le prix affiché est le "à partir de" (offre active la moins chère) ; le détail
 // des offres concurrentes vit sur GET /products/:slug.
 router.get("/", asyncHandler(async (req, res) => {
-  const { category, subcategory } = req.query;
+  const { category, subcategory, categorySlug } = req.query;
+  // `subcategory` et `categorySlug` filtrent tous deux sur la relation Product.subcategory :
+  // les combiner dans un seul objet évite qu'un spread écrase l'autre (même clé "subcategory").
+  const subcategoryWhere: { slug?: string; category?: { slug: string } } = {};
+  if (subcategory) subcategoryWhere.slug = String(subcategory);
+  if (categorySlug) subcategoryWhere.category = { slug: String(categorySlug) };
+
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
       ...(category ? { category: String(category) } : {}),
-      ...(subcategory ? { subcategory: { slug: String(subcategory) } } : {}),
+      ...(Object.keys(subcategoryWhere).length > 0 ? { subcategory: subcategoryWhere } : {}),
     },
     include: {
       offers: { where: { isActive: true }, select: { price: true, salesCount: true } },

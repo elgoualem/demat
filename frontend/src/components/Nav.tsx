@@ -63,7 +63,7 @@ export default function Nav() {
                 {categories.map((c) => (
                   <Link
                     key={c.id}
-                    href={`/?category=${c.slug}#catalogue`}
+                    href={`/services/${c.slug}`}
                     onClick={() => setCategoriesOpen(false)}
                     className="flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-stone-700 hover:bg-stone-50"
                   >
@@ -190,7 +190,7 @@ export default function Nav() {
                 {categories.map((c) => (
                   <Link
                     key={c.id}
-                    href={`/?category=${c.slug}#catalogue`}
+                    href={`/services/${c.slug}`}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700"
                   >
