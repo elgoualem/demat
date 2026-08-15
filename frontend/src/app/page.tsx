@@ -57,11 +57,10 @@ export default function HomePage() {
       <section className="mb-10">
         <p className="mb-3 text-xs font-semibold tracking-widest text-brand-600 uppercase">Place de marché vérifiée</p>
         <h1 className="font-serif text-5xl leading-[1.1] text-stone-900">
-          Rechargez en <span className="italic text-brand-600">3 étapes.</span>
+          Rechargez. <span className="text-brand-600">Payez.</span> Voyagez.
         </h1>
         <p className="mt-5 max-w-xl text-lg text-stone-500">
-          Des fournisseurs vérifiés proposent leur prix sur chaque service. Téléphonie, argent, voyage — un seul
-          endroit pour comparer et souscrire, en toute confiance.
+          Tout ce dont vous avez besoin, au même endroit.
         </p>
 
         <div className="relative mt-7 max-w-xl">

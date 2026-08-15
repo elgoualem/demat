@@ -1,28 +1,27 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Public_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import Nav from "@/components/Nav";
 
-const instrumentSerif = Instrument_Serif({
+const inter = Inter({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-instrument-serif",
+  variable: "--font-inter",
 });
 
-const publicSans = Public_Sans({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-public-sans",
+  variable: "--font-plus-jakarta-sans",
 });
 
 export const metadata: Metadata = {
-  title: "Démat — Place de marché vérifiée",
-  description: "Comparez des fournisseurs vérifiés et commandez en toute confiance : téléphonie, argent, voyage.",
+  title: "DigiGo | Recharges, cartes prépayées, voyages et assurances",
+  description: "DigiGo simplifie vos recharges téléphoniques, cartes prépayées, billets de voyage, assurances et services numériques.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={`${instrumentSerif.variable} ${publicSans.variable}`}>
+    <html lang="fr" className={`${inter.variable} ${plusJakartaSans.variable}`}>
       <body>
         <AuthProvider>
           <Nav />
