@@ -25,13 +25,17 @@ export default function ProductPageClient() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [buyingAs, setBuyingAs] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choosingId, setChoosingId] = useState<string | null>(null);
 
   useEffect(() => {
     getProduct(params.slug)
       .then(setProduct)
-      .catch(() => setError("Impossible de charger ce produit."))
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) setNotFound(true);
+        else setError("Impossible de charger ce produit.");
+      })
       .finally(() => setLoading(false));
   }, [params.slug]);
 
@@ -57,6 +61,24 @@ export default function ProductPageClient() {
   }
 
   if (loading) return <p className="text-stone-500">Chargement…</p>;
+
+  if (notFound) {
+    return (
+      <div>
+        <p className="mb-4 text-sm text-stone-500">
+          <Link href="/" className="hover:text-stone-900">
+            Accueil
+          </Link>{" "}
+          /{" "}
+          <Link href="/services" className="hover:text-stone-900">
+            Services
+          </Link>
+        </p>
+        <p className="text-stone-500">Ce produit n&apos;existe pas ou n&apos;est plus disponible.</p>
+      </div>
+    );
+  }
+
   if (error && !product) return <p className="text-sm text-red-600">{error}</p>;
   if (!product) return null;
 
