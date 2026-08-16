@@ -1,12 +1,13 @@
 import Link from "next/link";
+import Logo from "./Logo";
 
 export default function Footer() {
   return (
     <footer className="mt-16 border-t border-stone-200 bg-white">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-serif text-xl text-stone-900">DigiGo</p>
-          <p className="mt-1 max-w-xs text-sm text-stone-500">Rechargez. Payez. Voyagez.</p>
+          <Logo size="sm" />
+          <p className="mt-2 max-w-xs text-sm text-stone-500">Rechargez. Payez. Voyagez.</p>
         </div>
 
         <div className="flex flex-wrap gap-8 text-sm">

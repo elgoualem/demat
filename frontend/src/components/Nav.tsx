@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { getCategories, CategoryTreeNode } from "@/lib/api";
+import Logo from "./Logo";
 
 export default function Nav() {
   const { user, logout } = useAuth();
@@ -43,9 +44,7 @@ export default function Nav() {
   return (
     <nav className="sticky top-0 z-20 border-b border-stone-200 bg-cream/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <Link href="/" className="shrink-0 whitespace-nowrap font-serif text-2xl tracking-tight text-stone-900">
-          DigiGo
-        </Link>
+        <Logo />
 
         {/* Navigation desktop */}
         <div className="hidden items-center gap-5 whitespace-nowrap text-sm font-medium text-stone-600 md:flex">
