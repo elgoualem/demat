@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getProduct, createOrder, listOrganizations, ProductDetail, Organization, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useCart } from "@/lib/cart";
 import { getProductCategoryMeta } from "@/lib/categories";
 
 function formatPrice(cents: number, currency: string) {
@@ -19,6 +20,7 @@ function formatDelivery(seconds: number | null) {
 
 export default function ProductPageClient() {
   const { token } = useAuth();
+  const cart = useCart();
   const router = useRouter();
   const params = useParams<{ slug: string }>();
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -28,6 +30,8 @@ export default function ProductPageClient() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choosingId, setChoosingId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedId, setAddedId] = useState<string | null>(null);
 
   useEffect(() => {
     getProduct(params.slug)
@@ -57,6 +61,24 @@ export default function ProductPageClient() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur inconnue");
       setChoosingId(null);
+    }
+  }
+
+  async function handleAddToCart(offerId: string) {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    setAddingId(offerId);
+    setError(null);
+    try {
+      await cart.add(offerId);
+      setAddedId(offerId);
+      setTimeout(() => setAddedId((current) => (current === offerId ? null : current)), 1500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur inconnue");
+    } finally {
+      setAddingId(null);
     }
   }
 
@@ -176,13 +198,22 @@ export default function ProductPageClient() {
                   <p className="text-xs text-stone-400">{formatDelivery(offer.deliverySeconds)}</p>
                 )}
               </div>
-              <button
-                onClick={() => handleChoose(offer.id)}
-                disabled={choosingId === offer.id}
-                className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {choosingId === offer.id ? "…" : "Choisir"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleAddToCart(offer.id)}
+                  disabled={addingId === offer.id}
+                  className="rounded-full border border-stone-300 px-3.5 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {addingId === offer.id ? "…" : addedId === offer.id ? "Ajouté ✓" : "Ajouter au panier"}
+                </button>
+                <button
+                  onClick={() => handleChoose(offer.id)}
+                  disabled={choosingId === offer.id}
+                  className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {choosingId === offer.id ? "…" : "Choisir"}
+                </button>
+              </div>
             </div>
           </div>
         ))}

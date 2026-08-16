@@ -4,10 +4,12 @@ import { useEffect, useRef, useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { useCart } from "@/lib/cart";
 import { getCategories, CategoryTreeNode } from "@/lib/api";
 
 export default function Nav() {
   const { user, logout } = useAuth();
+  const { count } = useCart();
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryTreeNode[]>([]);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -113,6 +115,29 @@ export default function Nav() {
               </button>
             )}
           </div>
+
+          {/* Panier */}
+          {user && (
+            <Link
+              href="/cart"
+              aria-label="Panier"
+              className="relative flex h-8 w-8 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-900"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 1.972-4.767 2.517-7.363a1.125 1.125 0 00-1.11-1.337H5.106M7.5 14.25L5.106 5.272M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
+                />
+              </svg>
+              {count > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold text-white">
+                  {count}
+                </span>
+              )}
+            </Link>
+          )}
 
           <div className="hidden items-center gap-2 whitespace-nowrap text-sm sm:flex sm:gap-3">
             {user ? (
