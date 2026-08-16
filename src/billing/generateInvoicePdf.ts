@@ -11,6 +11,7 @@ export interface InvoicePdfData {
     status: string;
   };
   orderId: string;
+  quantity: number;
   product: { name: string };
   provider: { name: string };
   buyer: { email: string; name: string | null };
@@ -30,7 +31,7 @@ function companyField(value: string | undefined, label: string) {
 
 export function generateInvoicePdf(data: InvoicePdfData): PDFKit.PDFDocument {
   const doc = new PDFDocument({ size: "A4", margin: 50 });
-  const { invoice, product, provider, buyer, organization } = data;
+  const { invoice, quantity, product, provider, buyer, organization } = data;
   const number = formatInvoiceNumber(invoice.issuedAt, invoice.sequenceNumber);
 
   // Vendeur
@@ -73,7 +74,7 @@ export function generateInvoicePdf(data: InvoicePdfData): PDFKit.PDFDocument {
   doc.fillColor("#0b0b0b").fontSize(11);
   doc.text(product.name, 50, rowY, { width: 200 });
   doc.fontSize(10).fillColor("#52514e").text(provider.name, 260, rowY, { width: 130 });
-  doc.text("1", 400, rowY, { width: 40, align: "right" });
+  doc.text(String(quantity), 400, rowY, { width: 40, align: "right" });
   doc.fillColor("#0b0b0b").text(money(invoice.amount, invoice.currency), 460, rowY, { width: 90, align: "right" });
 
   // Totaux

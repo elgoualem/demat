@@ -257,6 +257,64 @@ export function removeOrganizationMember(token: string, id: string, userId: stri
   });
 }
 
+// ---- Panier ----
+
+export interface CartItem {
+  id: string;
+  quantity: number;
+  available: boolean;
+  subtotal: number;
+  offer: { id: string; price: number; provider: Provider };
+  product: { id: string; name: string; slug: string; imageUrl: string | null; currency: string; journeyType: Product["journeyType"] };
+}
+
+export interface CartSummary {
+  items: CartItem[];
+  total: number;
+}
+
+export interface CheckoutResult {
+  orders: Order[];
+  skipped: { productName: string; reason: string }[];
+}
+
+export function getCart(token: string): Promise<CartSummary> {
+  return request<CartSummary>("/cart", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function addToCart(token: string, offerId: string, quantity?: number): Promise<CartItem> {
+  return request<CartItem>("/cart", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ offerId, quantity }),
+  });
+}
+
+export function updateCartItem(token: string, id: string, quantity: number): Promise<CartItem> {
+  return request<CartItem>(`/cart/${id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ quantity }),
+  });
+}
+
+export function removeCartItem(token: string, id: string): Promise<void> {
+  return request<void>(`/cart/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function checkoutCart(token: string, organizationId?: string | null): Promise<CheckoutResult> {
+  return request<CheckoutResult>("/cart/checkout", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ organizationId: organizationId || undefined }),
+  });
+}
+
 // ---- Admin ----
 // Réservé aux comptes User.isAdmin = true (backend renvoie 403 sinon).
 

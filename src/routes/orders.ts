@@ -1,10 +1,8 @@
 import { Router } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { prisma } from "../db";
-import { submitOrderToProvider } from "../orchestrator/orchestrator";
+import { createOrderForOffer, OfferUnavailableError } from "../orchestrator/createOrder";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { asyncHandler } from "../middleware/asyncHandler";
-import { calculatePlatformFee } from "../billing/commission";
 import { formatInvoiceNumber } from "../billing/invoice";
 import { generateInvoicePdf } from "../billing/generateInvoicePdf";
 
@@ -30,34 +28,16 @@ router.post("/", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
     if (!membership) return res.status(403).json({ error: "not_a_member" });
   }
 
-  const offer = await prisma.offer.findUnique({
-    where: { id: offerId },
-    include: { product: true, provider: true },
-  });
-  if (!offer || !offer.isActive || !offer.product.isActive) return res.status(404).json({ error: "offer_not_found" });
+  let order;
+  try {
+    order = await createOrderForOffer({ userId: req.userId!, organizationId, offerId });
+  } catch (err) {
+    if (err instanceof OfferUnavailableError) return res.status(404).json({ error: "offer_not_found" });
+    throw err;
+  }
 
-  const order = await prisma.order.create({
-    data: {
-      userId: req.userId!,
-      organizationId: organizationId || null,
-      productId: offer.productId,
-      offerId: offer.id,
-      providerId: offer.providerId,
-      amount: offer.price,
-      platformFee: calculatePlatformFee(offer.provider, offer.price),
-      currency: offer.product.currency,
-      journeyType: offer.product.journeyType,
-      idempotencyKey: uuidv4(),
-    },
-    omit: OMIT_PLATFORM_FEE,
-  });
-
-  await prisma.event.create({ data: { orderId: order.id, type: "ORDER_CREATED" } });
-
-  if (offer.product.journeyType === "NATIVE") {
-    const result = await submitOrderToProvider(order.id);
-    const updated = await prisma.order.findUnique({ where: { id: order.id }, omit: OMIT_PLATFORM_FEE });
-    return res.status(result.status === "CONFIRMED" ? 201 : 502).json(updated);
+  if (order.journeyType === "NATIVE") {
+    return res.status(order.status === "CONFIRMED" ? 201 : 502).json(order);
   }
 
   // HYBRID / EXTERNAL : la commande reste PENDING, à compléter par le flux
@@ -145,6 +125,7 @@ router.get("/:id/invoice.pdf", requireAuth, asyncHandler(async (req: AuthedReque
   const doc = generateInvoicePdf({
     invoice: order.invoice,
     orderId: order.id,
+    quantity: order.quantity,
     product: order.product,
     provider: order.provider,
     buyer: order.user,

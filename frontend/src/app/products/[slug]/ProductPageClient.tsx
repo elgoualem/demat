@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getProduct, createOrder, listOrganizations, ProductDetail, Organization, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useCart } from "@/lib/cart";
 import { getProductCategoryMeta } from "@/lib/categories";
 
 function formatPrice(cents: number, currency: string) {
@@ -19,19 +20,26 @@ function formatDelivery(seconds: number | null) {
 
 export default function ProductPageClient() {
   const { token } = useAuth();
+  const cart = useCart();
   const router = useRouter();
   const params = useParams<{ slug: string }>();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [buyingAs, setBuyingAs] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choosingId, setChoosingId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedId, setAddedId] = useState<string | null>(null);
 
   useEffect(() => {
     getProduct(params.slug)
       .then(setProduct)
-      .catch(() => setError("Impossible de charger ce produit."))
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) setNotFound(true);
+        else setError("Impossible de charger ce produit.");
+      })
       .finally(() => setLoading(false));
   }, [params.slug]);
 
@@ -56,7 +64,43 @@ export default function ProductPageClient() {
     }
   }
 
+  async function handleAddToCart(offerId: string) {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    setAddingId(offerId);
+    setError(null);
+    try {
+      await cart.add(offerId);
+      setAddedId(offerId);
+      setTimeout(() => setAddedId((current) => (current === offerId ? null : current)), 1500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur inconnue");
+    } finally {
+      setAddingId(null);
+    }
+  }
+
   if (loading) return <p className="text-stone-500">Chargement…</p>;
+
+  if (notFound) {
+    return (
+      <div>
+        <p className="mb-4 text-sm text-stone-500">
+          <Link href="/" className="hover:text-stone-900">
+            Accueil
+          </Link>{" "}
+          /{" "}
+          <Link href="/services" className="hover:text-stone-900">
+            Services
+          </Link>
+        </p>
+        <p className="text-stone-500">Ce produit n&apos;existe pas ou n&apos;est plus disponible.</p>
+      </div>
+    );
+  }
+
   if (error && !product) return <p className="text-sm text-red-600">{error}</p>;
   if (!product) return null;
 
@@ -154,13 +198,22 @@ export default function ProductPageClient() {
                   <p className="text-xs text-stone-400">{formatDelivery(offer.deliverySeconds)}</p>
                 )}
               </div>
-              <button
-                onClick={() => handleChoose(offer.id)}
-                disabled={choosingId === offer.id}
-                className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {choosingId === offer.id ? "…" : "Choisir"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleAddToCart(offer.id)}
+                  disabled={addingId === offer.id}
+                  className="rounded-full border border-stone-300 px-3.5 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {addingId === offer.id ? "…" : addedId === offer.id ? "Ajouté ✓" : "Ajouter au panier"}
+                </button>
+                <button
+                  onClick={() => handleChoose(offer.id)}
+                  disabled={choosingId === offer.id}
+                  className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {choosingId === offer.id ? "…" : "Choisir"}
+                </button>
+              </div>
             </div>
           </div>
         ))}

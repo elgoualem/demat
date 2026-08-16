@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
+import { CartProvider } from "@/lib/cart";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
@@ -47,9 +48,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="fr" className={`${inter.variable} ${plusJakartaSans.variable}`}>
       <body className="flex min-h-screen flex-col">
         <AuthProvider>
-          <Nav />
-          <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">{children}</main>
-          <Footer />
+          <CartProvider>
+            <Nav />
+            <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">{children}</main>
+            <Footer />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

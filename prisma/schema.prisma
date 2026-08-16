@@ -62,6 +62,7 @@ model User {
   createdAt   DateTime     @default(now())
   orders      Order[]
   memberships Membership[]
+  cartItems   CartItem[]
 }
 
 // Compte B2B : plusieurs utilisateurs (Membership) rattachés à une même
@@ -194,8 +195,25 @@ model Offer {
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   orders          Order[]
+  cartItems       CartItem[]
 
   @@unique([productId, providerId])
+}
+
+// Panier persisté côté serveur : une ligne par offre ajoutée par un client
+// (auth requise, comme pour l'achat immédiat). Un ajout répété de la même
+// offre incrémente `quantity` plutôt que de dupliquer une ligne (voir
+// @@unique ci-dessous, utilisé en upsert par POST /cart).
+model CartItem {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  offer     Offer    @relation(fields: [offerId], references: [id])
+  offerId   String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, offerId])
 }
 
 model Order {
@@ -216,6 +234,10 @@ model Order {
   providerId         String
   status             OrderStatus   @default(PENDING)
   amount             Int
+  // Quantité de l'offre commandée (panier multi-articles) ; `amount` est déjà
+  // le total (offer.price * quantity), ce champ ne sert qu'à l'afficher
+  // correctement sur la facture (colonne "Qté") — jamais recalculé depuis lui.
+  quantity           Int           @default(1)
   // Commission plateforme prélevée sur `amount`, calculée à la création selon
   // la politique du fournisseur (Provider.commissionType/commissionValue).
   // Jamais renvoyée par les routes accessibles aux clients (voir routes/orders.ts) —
