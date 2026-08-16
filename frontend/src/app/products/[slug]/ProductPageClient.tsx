@@ -176,10 +176,10 @@ export default function ProductPageClient() {
         {product.offers.map((offer) => (
           <div
             key={offer.id}
-            className="flex items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
+            className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-600">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-600">
                 {offer.provider.name.slice(0, 2).toUpperCase()}
               </div>
               <div>
@@ -191,7 +191,7 @@ export default function ProductPageClient() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end sm:gap-4">
               <div className="text-right">
                 <p className="font-bold text-stone-900">{formatPrice(offer.price, product.currency)}</p>
                 {formatDelivery(offer.deliverySeconds) && (
