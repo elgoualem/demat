@@ -79,8 +79,10 @@ async function canAccessOrder(userId: string, order: { userId: string; organizat
     });
     if (membership) return true;
   }
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  return user?.isAdmin === true;
+  const permission = await prisma.adminPermission.findUnique({
+    where: { userId_scope: { userId, scope: "ORDERS" } },
+  });
+  return !!permission;
 }
 
 router.get("/:id", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
