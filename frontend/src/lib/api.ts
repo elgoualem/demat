@@ -95,11 +95,16 @@ export interface Order {
   provider?: { name: string; slug: string };
 }
 
+// Sections du back-office (voir schema.prisma AdminScope) : isAdmin ouvre le
+// panneau, adminScopes détermine les sections visibles (voir AdminGuard).
+export type AdminScope = "PROVIDERS" | "CATALOG" | "ORDERS" | "COMMISSIONS" | "ANALYTICS" | "USERS";
+
 export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
   isAdmin?: boolean;
+  adminScopes?: AdminScope[];
 }
 
 export interface AuthResponse {
@@ -423,7 +428,17 @@ export interface AdminUser {
   name: string | null;
   isAdmin: boolean;
   createdAt: string;
+  permissions: AdminScope[];
 }
+
+export const ADMIN_SCOPES: { value: AdminScope; label: string }[] = [
+  { value: "PROVIDERS", label: "Fournisseurs" },
+  { value: "CATALOG", label: "Catalogue (produits & offres)" },
+  { value: "ORDERS", label: "Commandes" },
+  { value: "COMMISSIONS", label: "Commissions" },
+  { value: "ANALYTICS", label: "Analytique" },
+  { value: "USERS", label: "Comptes & accès (super-admin)" },
+];
 
 export interface CommissionsReport {
   totalCommission: number;
@@ -583,6 +598,10 @@ export function getAdminUsers(token: string): Promise<AdminUser[]> {
 
 export function updateAdminUser(token: string, id: string, isAdmin: boolean): Promise<AdminUser> {
   return adminRequest(token, `/admin/users/${id}`, { method: "PATCH", body: JSON.stringify({ isAdmin }) });
+}
+
+export function updateAdminUserPermissions(token: string, id: string, scopes: AdminScope[]): Promise<AdminUser> {
+  return adminRequest(token, `/admin/users/${id}/permissions`, { method: "PATCH", body: JSON.stringify({ scopes }) });
 }
 
 export { ApiError };

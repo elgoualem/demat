@@ -1,4 +1,4 @@
-import { PrismaClient, CommissionType } from "@prisma/client";
+import { PrismaClient, CommissionType, AdminScope } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -277,14 +277,20 @@ async function main() {
   }
 
   // ADMIN_EMAIL (optionnel) : désigne l'opérateur de la plateforme, seul compte
-  // pouvant consulter GET /admin/commissions. Pas de self-service par design.
+  // avec tous les scopes d'office (y compris USERS, pour ensuite accorder des
+  // accès plus limités à d'autres comptes). Pas de self-service par design.
   if (process.env.ADMIN_EMAIL) {
-    await prisma.user.upsert({
+    const admin = await prisma.user.upsert({
       where: { email: process.env.ADMIN_EMAIL },
       update: { isAdmin: true },
       create: { email: process.env.ADMIN_EMAIL, isAdmin: true },
     });
-    console.log(`Admin désigné : ${process.env.ADMIN_EMAIL}`);
+    const allScopes: AdminScope[] = ["PROVIDERS", "CATALOG", "ORDERS", "COMMISSIONS", "ANALYTICS", "USERS"];
+    await prisma.adminPermission.createMany({
+      data: allScopes.map((scope) => ({ userId: admin.id, scope })),
+      skipDuplicates: true,
+    });
+    console.log(`Admin désigné : ${process.env.ADMIN_EMAIL} (accès complet)`);
   }
 
   console.log("Seed terminé.");

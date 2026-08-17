@@ -79,7 +79,7 @@ export default function AdminProvidersPage() {
   }
 
   return (
-    <AdminGuard>
+    <AdminGuard scope="PROVIDERS">
       <div>
         <Link href="/admin" className="mb-4 inline-block text-sm text-stone-500 hover:text-stone-700">
           ← Tableau de bord

@@ -1,7 +1,9 @@
 import { Router } from "express";
+import { AdminScope } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
+import { requireAdmin, requireScope } from "../middleware/adminScope";
 import { formatInvoiceNumber, getConfiguredVatRate } from "../billing/invoice";
 import { getConnector } from "../connectors/registry";
 import { slugify } from "../utils/slugify";
@@ -9,15 +11,20 @@ import { slugify } from "../utils/slugify";
 const router = Router();
 
 router.use(requireAuth);
-router.use(asyncHandler(async (req: AuthedRequest, res, next) => {
-  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
-  if (!user?.isAdmin) return res.status(403).json({ error: "forbidden" });
-  next();
-}));
+router.use(requireAdmin);
+
+// Chaque section du back-office est restreinte à son propre scope (voir
+// AdminScope dans schema.prisma) — pas seulement à isAdmin=true.
+router.use("/providers", requireScope("PROVIDERS"));
+router.use("/products", requireScope("CATALOG"));
+router.use("/categories", requireScope("CATALOG"));
+router.use("/offers", requireScope("CATALOG"));
+router.use("/orders", requireScope("ORDERS"));
+router.use("/users", requireScope("USERS"));
 
 // GET /admin/commissions — revenus de commission de la plateforme (jamais exposés
 // ailleurs : voir routes/orders.ts et routes/organizations.ts qui l'excluent).
-router.get("/commissions", asyncHandler(async (req, res) => {
+router.get("/commissions", requireScope("COMMISSIONS"), asyncHandler(async (req, res) => {
   const orders = await prisma.order.findMany({
     where: { status: "CONFIRMED" },
     select: {
@@ -57,7 +64,7 @@ router.get("/commissions", asyncHandler(async (req, res) => {
 // par jour, pour comparer plusieurs fournisseurs sur une période — + un
 // diagnostic agrégé par fournisseur (volume, taux de confirmation, panier
 // moyen), tous statuts confondus. from/to prime sur days quand fournis.
-router.get("/analytics", asyncHandler(async (req, res) => {
+router.get("/analytics", requireScope("ANALYTICS"), asyncHandler(async (req, res) => {
   const parsedFrom = req.query.from ? new Date(String(req.query.from)) : null;
   const parsedTo = req.query.to ? new Date(String(req.query.to)) : null;
   const hasCustomRange = parsedFrom && parsedTo && !isNaN(+parsedFrom) && !isNaN(+parsedTo);
@@ -504,13 +511,27 @@ router.patch("/orders/:id/resolve", asyncHandler(async (req: AuthedRequest, res)
 }));
 
 // ---- Comptes / admins ----
+// Réservé au scope USERS : seul un compte qui le détient choisit qui a accès au
+// panneau (isAdmin) et à quelles sections (AdminPermission) — voir schema.prisma.
+
+const ADMIN_SCOPES: AdminScope[] = ["PROVIDERS", "CATALOG", "ORDERS", "COMMISSIONS", "ANALYTICS", "USERS"];
+const usersSelect = {
+  id: true,
+  email: true,
+  name: true,
+  isAdmin: true,
+  createdAt: true,
+  adminPermissions: { select: { scope: true } },
+} as const;
+
+function withPermissions<T extends { adminPermissions: { scope: AdminScope }[] }>(user: T) {
+  const { adminPermissions, ...rest } = user;
+  return { ...rest, permissions: adminPermissions.map((p) => p.scope) };
+}
 
 router.get("/users", asyncHandler(async (req, res) => {
-  const users = await prisma.user.findMany({
-    select: { id: true, email: true, name: true, isAdmin: true, createdAt: true },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json(users);
+  const users = await prisma.user.findMany({ select: usersSelect, orderBy: { createdAt: "desc" } });
+  res.json(users.map(withPermissions));
 }));
 
 router.patch("/users/:id", asyncHandler(async (req: AuthedRequest, res) => {
@@ -520,12 +541,45 @@ router.patch("/users/:id", asyncHandler(async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: "cannot_revoke_self" });
   }
 
-  const user = await prisma.user.update({
-    where: { id: req.params.id },
-    data: { isAdmin },
-    select: { id: true, email: true, name: true, isAdmin: true, createdAt: true },
+  // Un compte qui perd son statut staff perd aussi ses permissions : réactivé plus
+  // tard, il repart sans accès plutôt que de récupérer d'anciens scopes oubliés.
+  const user = await prisma.$transaction(async (tx) => {
+    if (isAdmin === false) {
+      await tx.adminPermission.deleteMany({ where: { userId: req.params.id } });
+    }
+    return tx.user.update({ where: { id: req.params.id }, data: { isAdmin }, select: usersSelect });
   });
-  res.json(user);
+  res.json(withPermissions(user));
+}));
+
+// PATCH /admin/users/:id/permissions { scopes: AdminScope[] } — remplace l'ensemble
+// des scopes accordés à ce compte. Un compte ne peut pas modifier ses propres
+// permissions (évite de se retirer USERS par erreur et de se bloquer soi-même) :
+// il faut passer par un autre détenteur du scope USERS.
+router.patch("/users/:id/permissions", asyncHandler(async (req: AuthedRequest, res) => {
+  if (req.params.id === req.userId) {
+    return res.status(400).json({ error: "cannot_edit_own_permissions" });
+  }
+  const { scopes } = req.body as { scopes?: unknown };
+  if (!Array.isArray(scopes) || scopes.some((s) => !ADMIN_SCOPES.includes(s))) {
+    return res.status(400).json({ error: "invalid_scopes" });
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!target) return res.status(404).json({ error: "user_not_found" });
+  if (!target.isAdmin) return res.status(400).json({ error: "target_not_admin" });
+
+  const uniqueScopes = Array.from(new Set(scopes)) as AdminScope[];
+  const user = await prisma.$transaction(async (tx) => {
+    await tx.adminPermission.deleteMany({ where: { userId: req.params.id } });
+    if (uniqueScopes.length > 0) {
+      await tx.adminPermission.createMany({
+        data: uniqueScopes.map((scope) => ({ userId: req.params.id, scope })),
+      });
+    }
+    return tx.user.findUniqueOrThrow({ where: { id: req.params.id }, select: usersSelect });
+  });
+  res.json(withPermissions(user));
 }));
 
 export default router;

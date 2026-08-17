@@ -46,6 +46,19 @@ enum MembershipRole {
   MEMBER
 }
 
+// Sections du back-office qu'un compte staff (User.isAdmin = true) peut utiliser.
+// isAdmin reste la porte d'entrée du panneau ; AdminPermission décide de ce qu'il
+// y voit. USERS est le scope "super-admin" : lui seul permet de gérer isAdmin et
+// les permissions des autres comptes (voir routes/admin.ts).
+enum AdminScope {
+  PROVIDERS
+  CATALOG
+  ORDERS
+  COMMISSIONS
+  ANALYTICS
+  USERS
+}
+
 enum CommissionType {
   PERCENTAGE // commissionValue en points de base (500 = 5,00 %)
   FIXED      // commissionValue en centimes
@@ -63,6 +76,19 @@ model User {
   orders      Order[]
   memberships Membership[]
   cartItems   CartItem[]
+  adminPermissions AdminPermission[]
+}
+
+// Une ligne = un scope accordé à un compte staff. Ajoutée/retirée uniquement par
+// un compte détenant le scope USERS (voir PATCH /admin/users/:id/permissions).
+model AdminPermission {
+  id        String     @id @default(uuid())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    String
+  scope     AdminScope
+  createdAt DateTime   @default(now())
+
+  @@unique([userId, scope])
 }
 
 // Compte B2B : plusieurs utilisateurs (Membership) rattachés à une même

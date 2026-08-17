@@ -145,7 +145,7 @@ export default function AdminProductDetailPage() {
   if (!product) return null;
 
   return (
-    <AdminGuard>
+    <AdminGuard scope="CATALOG">
       <div>
         <Link href="/admin/products" className="mb-4 inline-block text-sm text-stone-500 hover:text-stone-700">
           ← Produits
