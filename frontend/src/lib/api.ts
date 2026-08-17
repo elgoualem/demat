@@ -105,6 +105,9 @@ export interface AuthUser {
   name: string | null;
   isAdmin?: boolean;
   adminScopes?: AdminScope[];
+  // Scopes accordés en lecture seule (accès "visiteur") : présents dans
+  // adminScopes mais sans droit d'écriture — voir AdminGuard/pages admin.
+  adminReadOnlyScopes?: AdminScope[];
 }
 
 export interface AuthResponse {
@@ -422,13 +425,23 @@ export interface AdminOrder {
   invoice: { number: string; status: string; issuedAt: string } | null;
 }
 
+export interface AdminPermissionGrant {
+  scope: AdminScope;
+  // Lecture seule : consultation autorisée, toute action (création, modification,
+  // résolution...) refusée par le backend même si la section le permettrait.
+  readOnly: boolean;
+  // null = accès permanent. Sinon, révoqué automatiquement à cette date (vérifié
+  // côté serveur à chaque requête — pas besoin de repasser derrière).
+  expiresAt: string | null;
+}
+
 export interface AdminUser {
   id: string;
   email: string;
   name: string | null;
   isAdmin: boolean;
   createdAt: string;
-  permissions: AdminScope[];
+  permissions: AdminPermissionGrant[];
 }
 
 export const ADMIN_SCOPES: { value: AdminScope; label: string }[] = [
@@ -600,8 +613,8 @@ export function updateAdminUser(token: string, id: string, isAdmin: boolean): Pr
   return adminRequest(token, `/admin/users/${id}`, { method: "PATCH", body: JSON.stringify({ isAdmin }) });
 }
 
-export function updateAdminUserPermissions(token: string, id: string, scopes: AdminScope[]): Promise<AdminUser> {
-  return adminRequest(token, `/admin/users/${id}/permissions`, { method: "PATCH", body: JSON.stringify({ scopes }) });
+export function updateAdminUserPermissions(token: string, id: string, permissions: AdminPermissionGrant[]): Promise<AdminUser> {
+  return adminRequest(token, `/admin/users/${id}/permissions`, { method: "PATCH", body: JSON.stringify({ permissions }) });
 }
 
 export { ApiError };

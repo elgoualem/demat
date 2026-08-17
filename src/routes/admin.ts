@@ -521,12 +521,12 @@ const usersSelect = {
   name: true,
   isAdmin: true,
   createdAt: true,
-  adminPermissions: { select: { scope: true } },
+  adminPermissions: { select: { scope: true, readOnly: true, expiresAt: true } },
 } as const;
 
-function withPermissions<T extends { adminPermissions: { scope: AdminScope }[] }>(user: T) {
+function withPermissions<T extends { adminPermissions: { scope: AdminScope; readOnly: boolean; expiresAt: Date | null }[] }>(user: T) {
   const { adminPermissions, ...rest } = user;
-  return { ...rest, permissions: adminPermissions.map((p) => p.scope) };
+  return { ...rest, permissions: adminPermissions };
 }
 
 router.get("/users", asyncHandler(async (req, res) => {
@@ -552,29 +552,60 @@ router.patch("/users/:id", asyncHandler(async (req: AuthedRequest, res) => {
   res.json(withPermissions(user));
 }));
 
-// PATCH /admin/users/:id/permissions { scopes: AdminScope[] } — remplace l'ensemble
-// des scopes accordés à ce compte. Un compte ne peut pas modifier ses propres
-// permissions (évite de se retirer USERS par erreur et de se bloquer soi-même) :
-// il faut passer par un autre détenteur du scope USERS.
+interface PermissionInput {
+  scope: AdminScope;
+  readOnly?: boolean;
+  expiresAt?: string | null;
+}
+
+// PATCH /admin/users/:id/permissions { permissions: PermissionInput[] } — remplace
+// l'ensemble des accès de ce compte. Chaque entrée peut être en lecture seule
+// (readOnly, aucune écriture même si le scope serait normalement modifiable) et/ou
+// temporaire (expiresAt, une date future — omis ou null = accès permanent). Un
+// compte ne peut pas modifier ses propres permissions (évite de se retirer USERS
+// par erreur et de se bloquer soi-même) : il faut passer par un autre détenteur
+// du scope USERS.
 router.patch("/users/:id/permissions", asyncHandler(async (req: AuthedRequest, res) => {
   if (req.params.id === req.userId) {
     return res.status(400).json({ error: "cannot_edit_own_permissions" });
   }
-  const { scopes } = req.body as { scopes?: unknown };
-  if (!Array.isArray(scopes) || scopes.some((s) => !ADMIN_SCOPES.includes(s))) {
-    return res.status(400).json({ error: "invalid_scopes" });
+  const { permissions } = req.body as { permissions?: unknown };
+  if (!Array.isArray(permissions)) {
+    return res.status(400).json({ error: "invalid_permissions" });
+  }
+
+  const parsed = new Map<AdminScope, { readOnly: boolean; expiresAt: Date | null }>();
+  for (const entry of permissions as PermissionInput[]) {
+    if (!entry || typeof entry !== "object" || !ADMIN_SCOPES.includes(entry.scope)) {
+      return res.status(400).json({ error: "invalid_permissions" });
+    }
+    if (entry.readOnly !== undefined && typeof entry.readOnly !== "boolean") {
+      return res.status(400).json({ error: "invalid_permissions" });
+    }
+    let expiresAt: Date | null = null;
+    if (entry.expiresAt !== undefined && entry.expiresAt !== null) {
+      expiresAt = new Date(entry.expiresAt);
+      if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+        return res.status(400).json({ error: "invalid_expiresAt" });
+      }
+    }
+    parsed.set(entry.scope, { readOnly: entry.readOnly ?? false, expiresAt });
   }
 
   const target = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!target) return res.status(404).json({ error: "user_not_found" });
   if (!target.isAdmin) return res.status(400).json({ error: "target_not_admin" });
 
-  const uniqueScopes = Array.from(new Set(scopes)) as AdminScope[];
   const user = await prisma.$transaction(async (tx) => {
     await tx.adminPermission.deleteMany({ where: { userId: req.params.id } });
-    if (uniqueScopes.length > 0) {
+    if (parsed.size > 0) {
       await tx.adminPermission.createMany({
-        data: uniqueScopes.map((scope) => ({ userId: req.params.id, scope })),
+        data: Array.from(parsed.entries()).map(([scope, { readOnly, expiresAt }]) => ({
+          userId: req.params.id,
+          scope,
+          readOnly,
+          expiresAt,
+        })),
       });
     }
     return tx.user.findUniqueOrThrow({ where: { id: req.params.id }, select: usersSelect });
