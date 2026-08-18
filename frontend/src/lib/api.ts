@@ -427,6 +427,9 @@ export interface AdminUser {
   email: string;
   name: string | null;
   isAdmin: boolean;
+  // null = accès permanent. Vérifié côté serveur à chaque requête /admin/* —
+  // ce champ n'est qu'un affichage, jamais la barrière elle-même.
+  adminAccessExpiresAt: string | null;
   createdAt: string;
   permissions: AdminScope[];
 }
@@ -596,8 +599,17 @@ export function getAdminUsers(token: string): Promise<AdminUser[]> {
   return adminRequest(token, "/admin/users");
 }
 
-export function updateAdminUser(token: string, id: string, isAdmin: boolean): Promise<AdminUser> {
-  return adminRequest(token, `/admin/users/${id}`, { method: "PATCH", body: JSON.stringify({ isAdmin }) });
+// adminAccessExpiresAt : omis -> inchangé, null -> accès permanent, sinon ISO datetime future.
+export function updateAdminUser(
+  token: string,
+  id: string,
+  isAdmin: boolean,
+  adminAccessExpiresAt?: string | null
+): Promise<AdminUser> {
+  return adminRequest(token, `/admin/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ isAdmin, ...(adminAccessExpiresAt !== undefined && { adminAccessExpiresAt }) }),
+  });
 }
 
 export function updateAdminUserPermissions(token: string, id: string, scopes: AdminScope[]): Promise<AdminUser> {

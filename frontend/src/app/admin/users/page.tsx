@@ -7,12 +7,30 @@ import { getAdminUsers, updateAdminUser, updateAdminUserPermissions, AdminUser, 
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 
+// Préréglages en heures ; "Personnalisé…" ouvre un sélecteur date/heure, "Permanent"
+// efface l'expiration. Même principe que les préréglages de /admin/analytics.
+const EXPIRATION_PRESETS = [
+  { label: "24 heures", hours: 24 },
+  { label: "7 jours", hours: 24 * 7 },
+  { label: "30 jours", hours: 24 * 30 },
+  { label: "90 jours", hours: 24 * 90 },
+];
+
+function formatExpiration(iso: string | null) {
+  if (!iso) return "Permanent";
+  const date = new Date(iso);
+  if (date.getTime() <= Date.now()) return "Expiré";
+  return `Expire le ${date.toLocaleDateString("fr-FR")} à ${date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
 export default function AdminUsersPage() {
   const { token, user: me } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [customEditingId, setCustomEditingId] = useState<string | null>(null);
+  const [customValue, setCustomValue] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -31,6 +49,46 @@ export default function AdminUsersPage() {
       setUsers((prev) => prev.map((x) => (x.id === u.id ? updated : x)));
     } catch (err) {
       setError(err instanceof ApiError && err.status === 400 ? "Tu ne peux pas révoquer ton propre accès admin." : "Erreur inconnue");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function handleExpirationChange(u: AdminUser, value: string) {
+    if (value === "custom") {
+      setCustomEditingId(u.id);
+      setCustomValue("");
+      return;
+    }
+    if (!token) return;
+    setCustomEditingId(null);
+    const iso = value === "permanent" ? null : new Date(Date.now() + Number(value) * 3600 * 1000).toISOString();
+    setSavingId(u.id);
+    setError(null);
+    try {
+      const updated = await updateAdminUser(token, u.id, u.isAdmin, iso);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? updated : x)));
+    } catch {
+      setError("Impossible de modifier l'expiration.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function applyCustomExpiration(u: AdminUser) {
+    if (!token || !customValue) return;
+    setSavingId(u.id);
+    setError(null);
+    try {
+      const updated = await updateAdminUser(token, u.id, u.isAdmin, new Date(customValue).toISOString());
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? updated : x)));
+      setCustomEditingId(null);
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status === 400
+          ? "Date d'expiration invalide (doit être dans le futur)."
+          : "Impossible de modifier l'expiration."
+      );
     } finally {
       setSavingId(null);
     }
@@ -77,6 +135,7 @@ export default function AdminUsersPage() {
                   <th className="p-3 font-medium">Email</th>
                   <th className="p-3 font-medium">Inscrit le</th>
                   <th className="p-3 font-medium">Statut</th>
+                  <th className="p-3 font-medium">Expiration</th>
                   <th className="p-3 font-medium">Accès aux sections</th>
                 </tr>
               </thead>
@@ -100,6 +159,51 @@ export default function AdminUsersPage() {
                         >
                           {u.isAdmin ? "Admin — révoquer" : "Promouvoir admin"}
                         </button>
+                      </td>
+                      <td className="p-3">
+                        {!u.isAdmin ? (
+                          <span className="text-stone-400">—</span>
+                        ) : isSelf ? (
+                          <span className="text-stone-400">Demande à un autre admin de modifier ton expiration.</span>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-xs text-stone-600">{formatExpiration(u.adminAccessExpiresAt)}</span>
+                            <select
+                              value=""
+                              onChange={(e) => handleExpirationChange(u, e.target.value)}
+                              disabled={savingId === u.id}
+                              className="rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <option value="" disabled>
+                                Modifier…
+                              </option>
+                              {EXPIRATION_PRESETS.map((p) => (
+                                <option key={p.hours} value={String(p.hours)}>
+                                  {p.label}
+                                </option>
+                              ))}
+                              <option value="permanent">Permanent</option>
+                              <option value="custom">Personnalisé…</option>
+                            </select>
+                            {customEditingId === u.id && (
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="datetime-local"
+                                  value={customValue}
+                                  onChange={(e) => setCustomValue(e.target.value)}
+                                  className="rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                                />
+                                <button
+                                  onClick={() => applyCustomExpiration(u)}
+                                  disabled={!customValue || savingId === u.id}
+                                  className="shrink-0 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Appliquer
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="p-3">
                         {!u.isAdmin ? (
@@ -134,7 +238,7 @@ export default function AdminUsersPage() {
                 })}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-4 text-center text-stone-400">Aucun compte.</td>
+                    <td colSpan={5} className="p-4 text-center text-stone-400">Aucun compte.</td>
                   </tr>
                 )}
               </tbody>
