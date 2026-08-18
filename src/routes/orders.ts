@@ -82,7 +82,7 @@ async function canAccessOrder(userId: string, order: { userId: string; organizat
   const permission = await prisma.adminPermission.findUnique({
     where: { userId_scope: { userId, scope: "ORDERS" } },
   });
-  return !!permission;
+  return !!permission && (!permission.expiresAt || permission.expiresAt.getTime() > Date.now());
 }
 
 router.get("/:id", requireAuth, asyncHandler(async (req: AuthedRequest, res) => {

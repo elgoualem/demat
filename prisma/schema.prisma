@@ -81,11 +81,17 @@ model User {
 
 // Une ligne = un scope accordé à un compte staff. Ajoutée/retirée uniquement par
 // un compte détenant le scope USERS (voir PATCH /admin/users/:id/permissions).
+// readOnly restreint ce scope aux méthodes GET (consultation seule, aucune
+// action) ; expiresAt révoque automatiquement l'accès à la date choisie par
+// l'admin qui l'a accordé (null = permanent) — vérifié à chaque requête,
+// jamais recopié ni prolongé implicitement.
 model AdminPermission {
   id        String     @id @default(uuid())
   user      User       @relation(fields: [userId], references: [id])
   userId    String
   scope     AdminScope
+  readOnly  Boolean    @default(false)
+  expiresAt DateTime?
   createdAt DateTime   @default(now())
 
   @@unique([userId, scope])

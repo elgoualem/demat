@@ -15,13 +15,21 @@ export const requireAdmin = asyncHandler(async (req: AuthedRequest, res: Respons
 
 // Restreint une section du back-office à un scope précis (voir AdminScope dans
 // schema.prisma). Un compte détenant le scope USERS choisit qui a accès à quoi
-// via PATCH /admin/users/:id/permissions.
+// via PATCH /admin/users/:id/permissions, y compris en lecture seule (readOnly)
+// et/ou pour une durée limitée (expiresAt) — vérifiés ici à chaque requête,
+// jamais mis en cache : une expiration prend effet immédiatement.
 export function requireScope(scope: AdminScope) {
   return asyncHandler(async (req: AuthedRequest, res: Response, next: NextFunction) => {
     const granted = await prisma.adminPermission.findUnique({
       where: { userId_scope: { userId: req.userId!, scope } },
     });
     if (!granted) return res.status(403).json({ error: "forbidden", scope });
+    if (granted.expiresAt && granted.expiresAt.getTime() <= Date.now()) {
+      return res.status(403).json({ error: "permission_expired", scope });
+    }
+    if (granted.readOnly && req.method !== "GET" && req.method !== "HEAD") {
+      return res.status(403).json({ error: "read_only", scope });
+    }
     next();
   });
 }
