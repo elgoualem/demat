@@ -520,6 +520,7 @@ const usersSelect = {
   email: true,
   name: true,
   isAdmin: true,
+  adminAccessExpiresAt: true,
   createdAt: true,
   adminPermissions: { select: { scope: true } },
 } as const;
@@ -534,11 +535,27 @@ router.get("/users", asyncHandler(async (req, res) => {
   res.json(users.map(withPermissions));
 }));
 
+// adminAccessExpiresAt (optionnel) : ISO datetime future, ou null explicite pour un
+// accès permanent. Omis du body -> inchangé. Toujours remis à null si isAdmin passe
+// à false (une révocation n'a pas de sens à durée limitée).
 router.patch("/users/:id", asyncHandler(async (req: AuthedRequest, res) => {
-  const { isAdmin } = req.body;
+  const { isAdmin, adminAccessExpiresAt } = req.body;
   if (typeof isAdmin !== "boolean") return res.status(400).json({ error: "isAdmin_boolean_required" });
   if (req.params.id === req.userId && isAdmin === false) {
     return res.status(400).json({ error: "cannot_revoke_self" });
+  }
+
+  let expiresAt: Date | null | undefined;
+  if (isAdmin === false) {
+    expiresAt = null;
+  } else if (adminAccessExpiresAt !== undefined) {
+    if (adminAccessExpiresAt === null) {
+      expiresAt = null;
+    } else {
+      const parsed = new Date(adminAccessExpiresAt);
+      if (isNaN(+parsed) || parsed <= new Date()) return res.status(400).json({ error: "invalid_expiration" });
+      expiresAt = parsed;
+    }
   }
 
   // Un compte qui perd son statut staff perd aussi ses permissions : réactivé plus
@@ -547,7 +564,11 @@ router.patch("/users/:id", asyncHandler(async (req: AuthedRequest, res) => {
     if (isAdmin === false) {
       await tx.adminPermission.deleteMany({ where: { userId: req.params.id } });
     }
-    return tx.user.update({ where: { id: req.params.id }, data: { isAdmin }, select: usersSelect });
+    return tx.user.update({
+      where: { id: req.params.id },
+      data: { isAdmin, ...(expiresAt !== undefined && { adminAccessExpiresAt: expiresAt }) },
+      select: usersSelect,
+    });
   });
   res.json(withPermissions(user));
 }));
