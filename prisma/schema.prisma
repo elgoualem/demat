@@ -72,6 +72,11 @@ model User {
   // invisibles pour les clients. Pas de self-service — flag posé manuellement
   // ou via ADMIN_EMAIL au seed.
   isAdmin     Boolean      @default(false)
+  // Expiration de l'accès staff (isAdmin) — null = accès permanent (défaut).
+  // Vérifiée à chaque requête /admin/* (voir middleware/adminScope.ts) : passé
+  // ce délai, isAdmin et les AdminPermission du compte sont révoqués
+  // automatiquement, exactement comme une révocation manuelle.
+  adminAccessExpiresAt DateTime?
   createdAt   DateTime     @default(now())
   orders      Order[]
   memberships Membership[]
