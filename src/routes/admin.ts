@@ -544,6 +544,15 @@ router.patch("/users/:id", asyncHandler(async (req: AuthedRequest, res) => {
   if (req.params.id === req.userId && isAdmin === false) {
     return res.status(400).json({ error: "cannot_revoke_self" });
   }
+  // Même règle pour l'expiration que pour la révocation : on ne modifie pas la
+  // sienne, ce que l'UI indique déjà ("demande à un autre admin"). Sans ce garde,
+  // un admin pouvait programmer sa propre révocation — et sur une installation à
+  // admin unique, plus personne ne peut le rétablir depuis l'interface. Empêche
+  // aussi qu'un accès volontairement limité se prolonge lui-même.
+  if (req.params.id === req.userId && adminAccessExpiresAt !== undefined) {
+    return res.status(400).json({ error: "cannot_expire_self" });
+  }
+
   let expiresAt: Date | null | undefined;
   if (isAdmin === false) {
     expiresAt = null;

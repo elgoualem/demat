@@ -18,8 +18,19 @@ const ADMIN_PERMISSIONS_INCLUDE = { adminPermissions: { select: { scope: true, r
 // Un scope expiré est exclu ici même (pas seulement bloqué côté API) : la
 // session reflète l'accès réel dès la connexion. adminReadOnlyScopes permet au
 // front de griser les actions d'écriture pour un accès "visiteur".
-function withAdminScopes<T extends { adminPermissions: { scope: string; readOnly: boolean; expiresAt: Date | null }[] }>(user: T) {
+// L'accès staff lui-même peut expirer (User.adminAccessExpiresAt, posé par
+// PATCH /admin/users/:id) : il est traité ici comme une révocation. Sans ce test,
+// la session annonçait isAdmin=true et des scopes à un compte que /admin/*
+// refuse déjà en 403 — l'UI affichait un panneau inaccessible.
+function withAdminScopes<T extends {
+  isAdmin: boolean;
+  adminAccessExpiresAt: Date | null;
+  adminPermissions: { scope: string; readOnly: boolean; expiresAt: Date | null }[];
+}>(user: T) {
   const { adminPermissions, ...rest } = user;
+  if (user.adminAccessExpiresAt && user.adminAccessExpiresAt.getTime() <= Date.now()) {
+    return { ...rest, isAdmin: false, adminScopes: [], adminReadOnlyScopes: [] };
+  }
   const active = adminPermissions.filter((p) => !p.expiresAt || p.expiresAt.getTime() > Date.now());
   return {
     ...rest,
